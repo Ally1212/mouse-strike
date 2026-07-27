@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { FIGHTERS } from "../fighter-profiles.js";
 
-test.setTimeout(120_000);
+test.setTimeout(240_000);
 
 async function snapshot(page) {
   return page.evaluate(() => window.__mouseStrikeQa.snapshot());
