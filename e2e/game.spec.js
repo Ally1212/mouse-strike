@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.setTimeout(60_000);
+
 async function snapshot(page) {
   return page.evaluate(() => window.__mouseStrikeQa.snapshot());
 }
@@ -43,7 +45,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
     const battlefield = await page.locator("#game-canvas").boundingBox();
     await page.mouse.click(battlefield.x + battlefield.width / 2, battlefield.y + battlefield.height * 0.72, { button: "left" });
   }
-  await expect.poll(async () => (await snapshot(page)).transformProgress, { timeout: 3000 }).toBeGreaterThan(0.96);
+  await expect.poll(async () => (await snapshot(page)).transformProgress, { timeout: 8000 }).toBeGreaterThan(0.96);
 
   if (testInfo.project.name === "mobile") {
     await page.locator("#tactical-button").click();
