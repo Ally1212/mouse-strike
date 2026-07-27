@@ -3,7 +3,7 @@
 [![CI](https://github.com/Ally1212/mouse-strike/actions/workflows/ci.yml/badge.svg)](https://github.com/Ally1212/mouse-strike/actions/workflows/ci.yml)
 [![Deploy GitHub Pages](https://github.com/Ally1212/mouse-strike/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/Ally1212/mouse-strike/actions/workflows/deploy-pages.yml)
 
-当前版本：`2.1.2`
+当前版本：`2.1.3`
 
 在线试玩：<https://ally1212.github.io/mouse-strike/>
 

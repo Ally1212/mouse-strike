@@ -80,6 +80,7 @@ import {
   const previewStatus = document.querySelector("#preview-status");
   const previewButtons = [...document.querySelectorAll("[data-preview]")];
   const startButtonLabel = document.querySelector("#start-button-label");
+  const assetBasePath = import.meta.env.BASE_URL || "/";
   const gameOverPanel = document.querySelector("#game-over");
   const scoreValue = document.querySelector("#score-value");
   const comboValue = document.querySelector("#combo-value");
@@ -113,6 +114,11 @@ import {
   const moduleChoice = document.querySelector("#module-choice");
   const moduleButtons = [...document.querySelectorAll("[data-module-slot]")];
   let visuals = null;
+
+  function assetUrl(path) {
+    if (/^(?:https?:|data:|blob:)/.test(path)) return path;
+    return `${assetBasePath.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  }
 
   const COLORS = {
     canvas: "#090b0a",
@@ -344,7 +350,7 @@ import {
     selectedPassive.textContent = fighter.passive;
     selectedStrength.textContent = fighter.strength;
     selectedTradeoff.textContent = fighter.tradeoff;
-    fighterReferenceImage.src = fighter.reference.src;
+    fighterReferenceImage.src = assetUrl(fighter.reference.src);
     fighterReferenceImage.alt = fighter.reference.alt;
     if (fighter.reference.url) {
       referenceCredit.href = fighter.reference.url;

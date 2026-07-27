@@ -29,7 +29,7 @@ export const FIGHTERS = {
     secondary: "#c5fff4",
     ambient: "#196b65",
     reference: {
-      src: "/fighters/j35.webp",
+      src: "fighters/j35.webp",
       alt: "歼-35 鹘鹰原创程序化飞行渲染图",
       credit: "项目原创程序化渲染",
       url: "",
@@ -102,7 +102,7 @@ export const FIGHTERS = {
     secondary: "#a9c2ef",
     ambient: "#304d82",
     reference: {
-      src: "/fighters/faxx.webp",
+      src: "fighters/faxx.webp",
       alt: "F/A-XX 白隼原创程序化飞行渲染图",
       credit: "项目原创程序化渲染",
       url: "",
@@ -174,7 +174,7 @@ export const FIGHTERS = {
     secondary: "#eef2e8",
     ambient: "#6f9224",
     reference: {
-      src: "/fighters/f22.webp",
+      src: "fighters/f22.webp",
       alt: "F-22 Raptor 真实战机参考图",
       credit: "USAF / Public domain",
       url: "https://commons.wikimedia.org/wiki/File:F-22_Raptor_edit1_(cropped).jpg",
@@ -247,7 +247,7 @@ export const FIGHTERS = {
     secondary: "#d9e7ff",
     ambient: "#355f9f",
     reference: {
-      src: "/fighters/typhoon.webp",
+      src: "fighters/typhoon.webp",
       alt: "Eurofighter Typhoon 真实战机参考图",
       credit: "Sqn Ldr John Dylan Eklund RAF(R)/MOD / OGL 2.0",
       url: "https://commons.wikimedia.org/wiki/File:RAF_Typhoon_inflight.jpg",
@@ -320,7 +320,7 @@ export const FIGHTERS = {
     secondary: "#ffe0e5",
     ambient: "#963e55",
     reference: {
-      src: "/fighters/rafale.webp",
+      src: "fighters/rafale.webp",
       alt: "Dassault Rafale 真实战机参考图",
       credit: "Clemens Vasters / CC BY 2.0",
       url: "https://commons.wikimedia.org/wiki/File:Dassault_Rafale_(40765376431).jpg",
@@ -394,7 +394,7 @@ export const FIGHTERS = {
     secondary: "#fff2b8",
     ambient: "#98791e",
     reference: {
-      src: "/fighters/gripen.webp",
+      src: "fighters/gripen.webp",
       alt: "JAS 39 Gripen 真实战机参考图",
       credit: "U.S. Air Force photo by 1st Lt. Christopher Mesnard / Public domain",
       url: "https://commons.wikimedia.org/wiki/File:1025448_A_Swedish_JAS-39_Gripen_returns_to_the_play_areas_of_the_Arctic_Challenge_exercise_Sept._24,_2013.jpg",
@@ -467,7 +467,7 @@ export const FIGHTERS = {
     secondary: "#ffd5c9",
     ambient: "#9b3923",
     reference: {
-      src: "/fighters/su57.webp",
+      src: "fighters/su57.webp",
       alt: "Sukhoi Su-57 真实战机参考图",
       credit: "Anna Zvereva / CC BY-SA 2.0",
       url: "https://commons.wikimedia.org/wiki/File:Sukhoi_Design_Bureau,_051,_Sukhoi_Su-57_(49580577488).jpg",
@@ -540,7 +540,7 @@ export const FIGHTERS = {
     secondary: "#ffd8df",
     ambient: "#8c3045",
     reference: {
-      src: "/fighters/j20.webp",
+      src: "fighters/j20.webp",
       alt: "Chengdu J-20 真实战机参考图",
       credit: "Alert5 / CC BY-SA 4.0",
       url: "https://commons.wikimedia.org/wiki/File:J-20_at_Airshow_China_2016.jpg",
