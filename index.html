@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090b0a" />
+    <title>鼠标突击队 | Mouse Strike</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到游戏</a>
+
+    <div class="audio-controls" aria-label="音效控制">
+      <button id="sound-toggle" class="sound-toggle" type="button" aria-label="关闭音效" title="关闭音效">
+        <span class="sound-icon" aria-hidden="true"></span>
+      </button>
+      <label class="volume-control">
+        <span class="sr-only">音效音量</span>
+        <input id="volume-slider" type="range" min="0" max="100" value="42" aria-label="音效音量" />
+      </label>
+    </div>
+
+    <main id="main-content" class="app-shell">
+      <section id="menu-screen" class="menu-screen" aria-labelledby="game-title">
+        <div class="brand-mark" aria-hidden="true">
+          <span class="brand-mark__wing"></span>
+          <span class="brand-mark__core"></span>
+          <span class="brand-mark__wing brand-mark__wing--right"></span>
+        </div>
+
+        <div class="menu-copy">
+          <p class="eyebrow">MOUSE STRIKE // QUICK DEPLOY</p>
+          <h1 id="game-title">鼠标突击队</h1>
+          <p class="menu-lead">选一架，马上清屏。</p>
+        </div>
+
+        <section class="hangar" aria-labelledby="hangar-title">
+          <div class="hangar-heading">
+            <div>
+              <p class="eyebrow">SELECT AIRFRAME</p>
+              <h2 id="hangar-title">选择战机</h2>
+            </div>
+            <span id="selected-country" class="country-code">USA</span>
+          </div>
+
+          <div class="fighter-feature">
+            <div class="hangar-stage">
+              <canvas id="fighter-preview" width="720" height="300" aria-label="当前选择战机三维变形预览"></canvas>
+              <div class="hangar-stage__status" aria-hidden="true">
+                <span>LIVE RIG</span>
+                <strong>FLIGHT → ASSAULT</strong>
+              </div>
+            </div>
+            <div class="fighter-copy">
+              <p id="selected-role" class="fighter-role">制空 / 隐身突击</p>
+              <h3 id="selected-name">F-22 Raptor</h3>
+              <p id="selected-special">幽灵矢量：变形后追加快速锁定的追踪导弹。</p>
+            </div>
+          </div>
+
+          <div class="fighter-stats" aria-label="当前战机属性">
+            <div><span>机动</span><i><b id="agility-stat"></b></i></div>
+            <div><span>火力</span><i><b id="firepower-stat"></b></i></div>
+            <div><span>装甲</span><i><b id="armor-stat"></b></i></div>
+          </div>
+
+          <div id="fighter-grid" class="fighter-grid" aria-label="可选战机">
+            <button class="fighter-option is-selected" type="button" data-fighter="f22" aria-pressed="true">
+              <canvas width="112" height="58" aria-hidden="true"></canvas>
+              <span><b>USA</b><strong>F-22</strong><small>隐身猎手</small></span>
+            </button>
+            <button class="fighter-option" type="button" data-fighter="typhoon" aria-pressed="false">
+              <canvas width="112" height="58" aria-hidden="true"></canvas>
+              <span><b>GBR</b><strong>Typhoon</strong><small>风暴截击</small></span>
+            </button>
+            <button class="fighter-option" type="button" data-fighter="rafale" aria-pressed="false">
+              <canvas width="112" height="58" aria-hidden="true"></canvas>
+              <span><b>FRA</b><strong>Rafale</strong><small>全域攻击</small></span>
+            </button>
+            <button class="fighter-option" type="button" data-fighter="gripen" aria-pressed="false">
+              <canvas width="112" height="58" aria-hidden="true"></canvas>
+              <span><b>SWE</b><strong>Gripen</strong><small>轻型游击</small></span>
+            </button>
+            <button class="fighter-option" type="button" data-fighter="su57" aria-pressed="false">
+              <canvas width="112" height="58" aria-hidden="true"></canvas>
+              <span><b>RUS</b><strong>Su-57</strong><small>重型破阵</small></span>
+            </button>
+            <button class="fighter-option" type="button" data-fighter="j20" aria-pressed="false">
+              <canvas width="112" height="58" aria-hidden="true"></canvas>
+              <span><b>CHN</b><strong>J-20</strong><small>远程压制</small></span>
+            </button>
+          </div>
+        </section>
+
+        <div class="launch-row">
+          <button id="start-button" class="start-button" type="button">
+            <span class="start-button__icon" aria-hidden="true">▶</span>
+            <span id="start-button-label">驾驶 F-22 出击</span>
+          </button>
+          <div class="launch-notes">
+            <p class="launch-note">开局即五向主炮，变形能量满载。</p>
+            <div class="control-strip" aria-label="核心操作">
+              <span><kbd>移动</kbd>驾驶</span>
+              <span><kbd>左键</kbd>变形</span>
+              <span><kbd>右键</kbd>战术技能</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules" aria-labelledby="rules-title">
+          <div class="rules-heading">
+            <p class="eyebrow">MISSION BRIEF</p>
+            <h2 id="rules-title">作战规则</h2>
+          </div>
+          <ol class="rule-list">
+            <li>
+              <span class="rule-number">01</span>
+              <div><strong>选机出击</strong><p>六架战机，六种专属火力。</p></div>
+            </li>
+            <li>
+              <span class="rule-number">02</span>
+              <div><strong>移动清屏</strong><p>鼠标或触摸驾驶，武器自动开火。</p></div>
+            </li>
+            <li>
+              <span class="rule-number">03</span>
+              <div><strong>主动变形</strong><p>左键切换飞行与强袭机甲形态。</p></div>
+            </li>
+            <li>
+              <span class="rule-number">Q</span>
+              <div><strong>战术爆发</strong><p>右键释放专属技能，摧毁 Boss 部件。</p></div>
+            </li>
+          </ol>
+        </div>
+
+        <p class="menu-footer">高密度击破模式，机型数值按游戏平衡设计。</p>
+      </section>
+
+      <section id="game-screen" class="game-screen" aria-label="游戏战场" hidden>
+        <canvas id="game-canvas"></canvas>
+        <canvas id="game-three-canvas" aria-hidden="true"></canvas>
+
+        <div class="hud" aria-live="polite">
+          <div class="hud-block">
+            <span class="hud-label">SCORE</span>
+            <strong id="score-value">000000</strong>
+            <span id="fighter-call-sign" class="fighter-call-sign">USA / F-22</span>
+          </div>
+          <div class="hud-block hud-block--center">
+            <span class="hud-label">CHAIN</span>
+            <strong id="combo-value">×1</strong>
+          </div>
+          <div class="hud-block hud-block--right">
+            <span class="hud-label">SHIELD</span>
+            <div id="lives-value" class="lives" aria-label="剩余三格护盾">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="weapon-hud" aria-live="polite">
+          <div class="weapon-hud__topline">
+            <span class="hud-label">WEAPON</span>
+            <strong id="weapon-value">LV.1 双脉冲</strong>
+            <span id="weapon-progress-label">0 / 3 CORE</span>
+          </div>
+          <div class="weapon-track" aria-hidden="true"><span id="weapon-progress"></span></div>
+        </div>
+
+        <div class="ability-hud" aria-live="polite">
+          <div class="ability ability--transform">
+            <kbd>左键</kbd>
+            <div>
+              <span>TRANSFORM</span>
+              <strong id="form-value">飞行形态</strong>
+              <i><b id="form-energy"></b></i>
+            </div>
+            <em id="form-energy-label">100%</em>
+          </div>
+          <div class="ability ability--tactical">
+            <kbd>右键</kbd>
+            <div>
+              <span>TACTICAL</span>
+              <strong id="tactical-value">幽灵猎杀</strong>
+            </div>
+            <em id="tactical-cooldown">READY</em>
+          </div>
+        </div>
+
+        <div class="mobile-actions" aria-label="战斗技能">
+          <button id="transform-button" type="button" aria-label="切换飞行与强袭形态">变形</button>
+          <button id="tactical-button" type="button" aria-label="释放战术技能">战术</button>
+        </div>
+
+        <div id="boss-hud" class="boss-hud" hidden>
+          <div class="boss-hud__label"><span>THREAT</span><strong id="boss-name">重装母舰</strong></div>
+          <div class="boss-track"><span id="boss-progress"></span></div>
+        </div>
+
+        <div class="exit-hint"><kbd>Q</kbd><span>退出</span></div>
+        <div id="wave-message" class="wave-message" aria-hidden="true">WAVE 01</div>
+        <div id="upgrade-message" class="upgrade-message" aria-hidden="true">
+          <span>WEAPON UPGRADE</span>
+          <strong>LV.2 三叉脉冲</strong>
+        </div>
+
+        <section id="module-choice" class="module-choice" aria-labelledby="module-title" hidden>
+          <p class="eyebrow">BOSS SALVAGE</p>
+          <h2 id="module-title">选择强化模块</h2>
+          <div class="module-choice__grid">
+            <button type="button" data-module="power"><span>01</span><strong>超导火控</strong><small>伤害提升，强化贯穿火力</small></button>
+            <button type="button" data-module="velocity"><span>02</span><strong>矢量超频</strong><small>射速提升，更快积累能量</small></button>
+            <button type="button" data-module="bulwark"><span>03</span><strong>反应装甲</strong><small>增加并恢复一格护盾</small></button>
+          </div>
+        </section>
+
+        <div id="game-over" class="game-over" hidden>
+          <p class="eyebrow">MISSION ENDED</p>
+          <h2>任务结束</h2>
+          <div class="result-grid">
+            <div><span>得分</span><strong id="final-score">0</strong></div>
+            <div><span>波次</span><strong id="final-wave">01</strong></div>
+            <div><span>武器</span><strong id="final-weapon">LV.1</strong></div>
+            <div><span>战机</span><strong id="final-fighter">F-22</strong></div>
+          </div>
+          <div class="game-over__actions">
+            <button id="restart-button" class="start-button start-button--small" type="button">重新开始</button>
+            <button id="menu-button" class="secondary-button" type="button">返回菜单</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="game.js"></script>
+  </body>
+</html>
