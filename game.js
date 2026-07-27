@@ -1,7 +1,12 @@
 import { createVisualSystem } from "./fighter-rig.js";
 import "./audio.js";
 import {
-  MODULES,
+  FIGHTERS,
+  getFighterProfile,
+  getModuleById,
+  getModuleChoices,
+} from "./fighter-profiles.js";
+import {
   canEnterAssault,
   formationPattern,
   nextTransformProgress,
@@ -26,12 +31,26 @@ import {
   const fighterPreview = document.querySelector("#fighter-preview");
   const fighterOptions = [...document.querySelectorAll(".fighter-option")];
   const selectedCountry = document.querySelector("#selected-country");
+  const selectedCallsign = document.querySelector("#selected-callsign");
   const selectedRole = document.querySelector("#selected-role");
   const selectedName = document.querySelector("#selected-name");
   const selectedSpecial = document.querySelector("#selected-special");
+  const selectedPassiveName = document.querySelector("#selected-passive-name");
+  const selectedPassive = document.querySelector("#selected-passive");
+  const selectedStrength = document.querySelector("#selected-strength");
+  const selectedTradeoff = document.querySelector("#selected-tradeoff");
   const agilityStat = document.querySelector("#agility-stat");
   const firepowerStat = document.querySelector("#firepower-stat");
   const armorStat = document.querySelector("#armor-stat");
+  const transformStat = document.querySelector("#transform-stat");
+  const tacticalStat = document.querySelector("#tactical-stat");
+  const agilityValue = document.querySelector("#agility-value");
+  const firepowerValue = document.querySelector("#firepower-value");
+  const armorValue = document.querySelector("#armor-value");
+  const transformValue = document.querySelector("#transform-value");
+  const tacticalValueStat = document.querySelector("#tactical-value-stat");
+  const previewStatus = document.querySelector("#preview-status");
+  const previewButtons = [...document.querySelectorAll("[data-preview]")];
   const startButtonLabel = document.querySelector("#start-button-label");
   const gameOverPanel = document.querySelector("#game-over");
   const scoreValue = document.querySelector("#score-value");
@@ -56,11 +75,12 @@ import {
   const formEnergyLabel = document.querySelector("#form-energy-label");
   const tacticalValue = document.querySelector("#tactical-value");
   const tacticalCooldown = document.querySelector("#tactical-cooldown");
+  const passiveStatus = document.querySelector("#passive-status");
   const tacticalAbility = document.querySelector(".ability--tactical");
   const transformButton = document.querySelector("#transform-button");
   const tacticalButton = document.querySelector("#tactical-button");
   const moduleChoice = document.querySelector("#module-choice");
-  const moduleButtons = [...document.querySelectorAll("[data-module]")];
+  const moduleButtons = [...document.querySelectorAll("[data-module-slot]")];
   let visuals = null;
 
   const COLORS = {
@@ -87,105 +107,6 @@ import {
     { level: 4, name: "波动翼炮", threshold: 5, rate: 0.145 },
     { level: 5, name: "终极矩阵", threshold: 0, rate: 0.13 },
   ];
-
-  const FIGHTERS = {
-    f22: {
-      id: "f22",
-      country: "USA",
-      name: "F-22 Raptor",
-      shortName: "F-22",
-      role: "制空 / 隐身突击",
-      special: "幽灵矢量：战术形态追加追踪导弹，终极形态缩短锁定间隔。",
-      accent: "#d8ff45",
-      secondary: "#eef2e8",
-      agility: 5,
-      firepower: 4,
-      armor: 3,
-      fireRate: 0.94,
-      damage: 1.06,
-      shape: { nose: 32, body: 27, wing: 28, wingY: 1, rearWingY: 15, tail: 14, canard: 4, twinTail: true },
-    },
-    typhoon: {
-      id: "typhoon",
-      country: "GBR",
-      name: "Eurofighter Typhoon",
-      shortName: "Typhoon",
-      role: "截击 / 高速穿透",
-      special: "风暴长矛：变形后从翼尖发射高速汇聚弹，适合贯穿纵向目标。",
-      accent: "#6fa8ff",
-      secondary: "#d9e7ff",
-      agility: 4,
-      firepower: 4,
-      armor: 4,
-      fireRate: 0.9,
-      damage: 1.02,
-      shape: { nose: 34, body: 28, wing: 34, wingY: 7, rearWingY: 17, tail: 11, canard: 10, twinTail: false },
-    },
-    rafale: {
-      id: "rafale",
-      country: "FRA",
-      name: "Dassault Rafale",
-      shortName: "Rafale",
-      role: "多用途 / 全域攻击",
-      special: "阵风回旋：变形后增加相位相反的波动炮，覆盖更宽的战场。",
-      accent: "#ff8294",
-      secondary: "#ffe0e5",
-      agility: 4,
-      firepower: 5,
-      armor: 3,
-      fireRate: 1,
-      damage: 1.13,
-      shape: { nose: 31, body: 27, wing: 33, wingY: 6, rearWingY: 18, tail: 12, canard: 11, twinTail: false },
-    },
-    gripen: {
-      id: "gripen",
-      country: "SWE",
-      name: "JAS 39 Gripen",
-      shortName: "Gripen",
-      role: "轻型 / 灵活游击",
-      special: "北境轨道炮：变形后周期发射超高速中心弹，机动响应最快。",
-      accent: "#ffd34f",
-      secondary: "#fff2b8",
-      agility: 5,
-      firepower: 3,
-      armor: 3,
-      fireRate: 0.82,
-      damage: 0.96,
-      shape: { nose: 30, body: 24, wing: 25, wingY: 4, rearWingY: 16, tail: 10, canard: 9, twinTail: false },
-    },
-    su57: {
-      id: "su57",
-      country: "RUS",
-      name: "Sukhoi Su-57",
-      shortName: "Su-57",
-      role: "重型 / 正面破阵",
-      special: "新星破城炮：变形后发射慢速高伤重弹，拥有额外一格护盾。",
-      accent: "#ff744f",
-      secondary: "#ffd5c9",
-      agility: 3,
-      firepower: 5,
-      armor: 5,
-      fireRate: 1.06,
-      damage: 1.16,
-      shape: { nose: 33, body: 32, wing: 36, wingY: 2, rearWingY: 17, tail: 18, canard: 5, twinTail: true },
-    },
-    j20: {
-      id: "j20",
-      country: "CHN",
-      name: "Chengdu J-20",
-      shortName: "J-20",
-      role: "远程 / 阵列压制",
-      special: "威龙僚机阵：变形后展开双侧无人翼，终极形态可协同发射追踪弹。",
-      accent: "#e85d75",
-      secondary: "#ffd8df",
-      agility: 4,
-      firepower: 4,
-      armor: 4,
-      fireRate: 0.98,
-      damage: 1.08,
-      shape: { nose: 36, body: 32, wing: 31, wingY: 0, rearWingY: 17, tail: 17, canard: 11, twinTail: true },
-    },
-  };
 
   function loadSelectedFighterId() {
     try {
@@ -226,6 +147,25 @@ import {
     damageMultiplier: 1,
     fireRateMultiplier: 1,
     energyGainMultiplier: 1,
+    tacticalCooldownMultiplier: 1,
+    transformDrainMultiplier: 1,
+    transformGuardBonus: 0,
+    passivePower: 0,
+    pierceBonus: 0,
+    waveRangeMultiplier: 1,
+    tacticalProjectileBonus: 0,
+    droneBonus: 0,
+    absorbCostMultiplier: 1,
+    assaultDamageMultiplier: 1,
+    grazeCount: 0,
+    overclockStacks: 0,
+    revengeCharge: 0,
+    resonanceBursts: 0,
+    railChain: 0,
+    railChainTimer: 0,
+    overclockTimer: 0,
+    heavyRangeMultiplier: 1,
+    nextEnemyId: 1,
     modules: [],
     bossKills: 0,
     skillUses: 0,
@@ -250,7 +190,7 @@ import {
   };
 
   function getFighter() {
-    return FIGHTERS[state.fighterId] || FIGHTERS.f22;
+    return getFighterProfile(state.fighterId);
   }
 
   function getTransformStage(level = state.weaponLevel) {
@@ -357,13 +297,26 @@ import {
     const fighter = getFighter();
     document.documentElement.style.setProperty("--fighter-accent", fighter.accent);
     document.documentElement.style.setProperty("--fighter-secondary", fighter.secondary);
+    document.documentElement.style.setProperty("--hangar-ambient", fighter.ambient);
     selectedCountry.textContent = fighter.country;
+    selectedCallsign.textContent = fighter.callsign;
     selectedRole.textContent = fighter.role;
     selectedName.textContent = fighter.name;
     selectedSpecial.textContent = fighter.special;
-    agilityStat.style.width = `${fighter.agility * 20}%`;
-    firepowerStat.style.width = `${fighter.firepower * 20}%`;
-    armorStat.style.width = `${fighter.armor * 20}%`;
+    selectedPassiveName.textContent = fighter.passiveName;
+    selectedPassive.textContent = fighter.passive;
+    selectedStrength.textContent = fighter.strength;
+    selectedTradeoff.textContent = fighter.tradeoff;
+    agilityStat.style.width = `${fighter.stats.mobility}%`;
+    firepowerStat.style.width = `${fighter.stats.firepower}%`;
+    armorStat.style.width = `${fighter.stats.armor}%`;
+    transformStat.style.width = `${fighter.stats.transform}%`;
+    tacticalStat.style.width = `${fighter.stats.tactical}%`;
+    agilityValue.textContent = fighter.stats.mobility;
+    firepowerValue.textContent = fighter.stats.firepower;
+    armorValue.textContent = fighter.stats.armor;
+    transformValue.textContent = fighter.stats.transform;
+    tacticalValueStat.textContent = fighter.stats.tactical;
     startButtonLabel.textContent = `驾驶 ${fighter.shortName} 出击`;
     fighterOptions.forEach((option) => {
       const selected = option.dataset.fighter === fighterId;
@@ -371,6 +324,8 @@ import {
       option.setAttribute("aria-pressed", String(selected));
     });
     drawHangarPreview();
+    setPreviewMode("transform");
+    populateModuleChoices();
     updateAbilityHud();
 
     if (persist) {
@@ -392,7 +347,31 @@ import {
         audio?.fighterSelect(option.dataset.fighter);
       });
     });
+    previewButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        await audio?.unlock();
+        setPreviewMode(button.dataset.preview);
+        audio?.previewMode?.(button.dataset.preview, state.fighterId);
+      });
+    });
     selectFighter(state.fighterId, false);
+  }
+
+  function setPreviewMode(mode) {
+    const validMode = ["flight", "transform", "assault", "tactical"].includes(mode) ? mode : "transform";
+    previewButtons.forEach((button) => {
+      const selected = button.dataset.preview === validMode;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    const labels = {
+      flight: "FLIGHT CONFIGURATION",
+      transform: "MECHANICAL SHIFT",
+      assault: "ASSAULT FRAME",
+      tactical: "TACTICAL RELEASE",
+    };
+    previewStatus.textContent = labels[validMode];
+    visuals?.setPreviewMode?.(validMode);
   }
 
   function syncAudioControls() {
@@ -419,7 +398,7 @@ import {
 
     if (!state.pointer.active) {
       state.pointer.x = state.width / 2;
-      state.pointer.y = state.height * 0.78;
+      state.pointer.y = state.height * (window.matchMedia("(max-width: 760px)").matches ? 0.58 : 0.78);
       state.player.x = state.pointer.x;
       state.player.y = state.pointer.y;
     } else {
@@ -451,7 +430,7 @@ import {
     state.ended = false;
     state.elapsed = 0;
     state.score = 0;
-    state.maxLives = fighter.armor >= 5 ? 4 : 3;
+    state.maxLives = fighter.maxLives;
     state.lives = state.maxLives;
     state.combo = 1;
     state.comboTimer = 0;
@@ -473,6 +452,25 @@ import {
     state.damageMultiplier = 1;
     state.fireRateMultiplier = 1;
     state.energyGainMultiplier = 1;
+    state.tacticalCooldownMultiplier = 1;
+    state.transformDrainMultiplier = 1;
+    state.transformGuardBonus = 0;
+    state.passivePower = 0;
+    state.pierceBonus = 0;
+    state.waveRangeMultiplier = 1;
+    state.tacticalProjectileBonus = 0;
+    state.droneBonus = 0;
+    state.absorbCostMultiplier = 1;
+    state.assaultDamageMultiplier = 1;
+    state.grazeCount = 0;
+    state.overclockStacks = 0;
+    state.revengeCharge = 0;
+    state.resonanceBursts = 0;
+    state.railChain = 0;
+    state.railChainTimer = 0;
+    state.overclockTimer = 0;
+    state.heavyRangeMultiplier = 1;
+    state.nextEnemyId = 1;
     state.modules = [];
     state.bossKills = 0;
     state.skillUses = 0;
@@ -490,7 +488,7 @@ import {
     state.particles = [];
     state.floatingTexts = [];
     state.player.x = state.width / 2;
-    state.player.y = state.height * 0.78;
+    state.player.y = state.height * (window.matchMedia("(max-width: 760px)").matches ? 0.58 : 0.78);
     state.player.invulnerable = 0;
     state.pointer.x = state.player.x;
     state.pointer.y = state.player.y;
@@ -569,8 +567,9 @@ import {
 
   function setPointer(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
+    const bottomInset = window.matchMedia("(max-width: 760px)").matches ? 252 : 24;
     state.pointer.x = Math.max(24, Math.min(state.width - 24, clientX - rect.left));
-    state.pointer.y = Math.max(58, Math.min(state.height - 24, clientY - rect.top));
+    state.pointer.y = Math.max(58, Math.min(state.height - bottomInset, clientY - rect.top));
     state.pointer.active = true;
   }
 
@@ -593,15 +592,19 @@ import {
   function toggleTransform() {
     if (!state.running || state.ended || state.awaitingModule) return;
     const entering = state.transformTarget < 0.5;
-    if (entering && !canEnterAssault(state.transformEnergy)) {
-      showUpgrade("变形能量不足 // 需要 28%", "ENERGY LOW");
+    const fighter = getFighter();
+    if (entering && !canEnterAssault(state.transformEnergy, fighter.transformThreshold)) {
+      showUpgrade(`变形能量不足 // 需要 ${fighter.transformThreshold}%`, "ENERGY LOW");
       return;
     }
 
     state.transformTarget = entering ? 1 : 0;
     state.formChanges += 1;
     state.transformPulse = 1.45;
-    state.player.invulnerable = Math.max(state.player.invulnerable, entering ? 0.68 : 0.34);
+    state.player.invulnerable = Math.max(
+      state.player.invulnerable,
+      entering ? 0.68 + state.transformGuardBonus : 0.34,
+    );
     state.shake = entering ? 14 : 8;
     if (entering) {
       const cleared = clearEnemyBulletsAround(state.player.x, state.player.y, 150);
@@ -626,11 +629,24 @@ import {
     const fighter = getFighter();
     const spec = tacticalSpec(fighter.id);
     const assault = state.transformProgress > 0.72;
+    const revenge = fighter.id === "su57" ? state.revengeCharge : 0;
+    const projectileCount = spec.count + state.tacticalProjectileBonus + Math.floor(revenge / 30);
     const x = state.player.x;
     const y = state.player.y - 24;
     const cleared = clearEnemyBulletsAround(x, y, assault ? 250 : 205);
     const blastRadius = assault ? 245 : 190;
-    const blastDamage = (assault ? 11 : 7) * fighter.damage * state.damageMultiplier;
+    const blastDamage = (assault ? 11 : 7) * fighter.damage * state.damageMultiplier
+      * (1 + revenge / 180);
+
+    if (fighter.id === "f22") {
+      const marked = state.enemies.filter((enemy) => enemy.marked);
+      marked.forEach((enemy) => {
+        enemy.hp -= blastDamage * (1.35 + state.passivePower);
+        enemy.marked = false;
+        burst(enemy.x, enemy.y, fighter.accent, 18, 220, 0.55);
+        addFloatingText(enemy.x, enemy.y, "PHANTOM EXECUTE", fighter.accent);
+      });
+    }
 
     for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
       const enemy = state.enemies[enemyIndex];
@@ -640,44 +656,58 @@ import {
       if (enemy.hp <= 0) killEnemy(enemyIndex);
     }
 
+    for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
+      if (state.enemies[enemyIndex].hp <= 0) killEnemy(enemyIndex);
+    }
+
     if (spec.projectile === "rail") {
-      const center = (spec.count - 1) / 2;
-      for (let shot = 0; shot < spec.count; shot += 1) {
+      const center = (projectileCount - 1) / 2;
+      for (let shot = 0; shot < projectileCount; shot += 1) {
         addPlayerBullet(x + (shot - center) * 13, y, (shot - center) * 0.018, 1180, "rail", assault ? 3.8 : 2.8, {
           color: fighter.accent,
           radius: 5,
+          pierce: fighter.id === "typhoon" ? 4 + state.pierceBonus : 1 + state.pierceBonus,
+          tactical: true,
         });
       }
     } else if (spec.projectile === "wave") {
-      const center = (spec.count - 1) / 2;
-      for (let shot = 0; shot < spec.count; shot += 1) {
+      const center = (projectileCount - 1) / 2;
+      for (let shot = 0; shot < projectileCount; shot += 1) {
         addPlayerBullet(x, y, (shot - center) * 0.055, 760, "wave", assault ? 3.2 : 2.3, {
           phase: shot * 0.7,
-          waveAmp: 28 + (shot % 3) * 6,
+          waveAmp: (28 + (shot % 3) * 6) * state.waveRangeMultiplier,
           color: fighter.accent,
           radius: 6,
+          tactical: true,
         });
       }
     } else if (spec.projectile === "heavy") {
-      const center = (spec.count - 1) / 2;
-      for (let shot = 0; shot < spec.count; shot += 1) {
-        addPlayerBullet(x, y, (shot - center) * 0.085, 610, "heavy", assault ? 6.8 : 5.1, {
+      const center = (projectileCount - 1) / 2;
+      for (let shot = 0; shot < projectileCount; shot += 1) {
+        addPlayerBullet(x, y, (shot - center) * 0.085, 610, "heavy", (assault ? 6.8 : 5.1) * (1 + revenge / 120), {
           color: shot % 2 ? fighter.secondary : fighter.accent,
-          radius: assault ? 11 : 9,
+          radius: (assault ? 11 : 9) * Math.min(1.35, state.heavyRangeMultiplier),
+          tactical: true,
         });
       }
     } else {
-      const center = (spec.count - 1) / 2;
-      for (let shot = 0; shot < spec.count; shot += 1) {
+      const center = (projectileCount - 1) / 2;
+      for (let shot = 0; shot < projectileCount; shot += 1) {
         addPlayerBullet(x, y, (shot - center) * 0.045, 680 + (shot % 3) * 45, "seeker", assault ? 3.5 : 2.6, {
           color: shot % 2 ? fighter.secondary : fighter.accent,
           radius: 6,
+          tactical: true,
         });
       }
     }
 
-    state.tacticalCooldown = spec.cooldown * (assault ? 0.84 : 1);
+    state.tacticalCooldown = spec.cooldown * state.tacticalCooldownMultiplier * (assault ? 0.84 : 1);
     state.transformEnergy = Math.min(100, state.transformEnergy + cleared * 0.6);
+    if (fighter.id === "su57") state.revengeCharge = 0;
+    if (fighter.id === "gripen") {
+      state.overclockStacks = Math.min(10, state.overclockStacks + 2 + state.droneBonus);
+      state.overclockTimer = 3.2;
+    }
     state.skillUses += 1;
     state.shake = assault ? 17 : 11;
     state.impactFlash = 0.18;
@@ -688,17 +718,27 @@ import {
   }
 
   function applyModule(moduleId) {
-    if (!state.awaitingModule || !MODULES[moduleId]) return;
-    const module = MODULES[moduleId];
+    const module = getModuleById(state.fighterId, moduleId);
+    if (!state.awaitingModule || !module) return;
     state.modules.push(moduleId);
-    if (moduleId === "power") {
-      state.damageMultiplier *= 1.22;
-    } else if (moduleId === "velocity") {
-      state.fireRateMultiplier *= 0.86;
-      state.energyGainMultiplier += 0.3;
-    } else if (moduleId === "bulwark") {
-      state.maxLives += 1;
-      state.lives = Math.min(state.maxLives, state.lives + 1);
+    const effects = module.effects || {};
+    if (effects.damage) state.damageMultiplier *= effects.damage;
+    if (effects.fireRate) state.fireRateMultiplier *= effects.fireRate;
+    if (effects.energyGain) state.energyGainMultiplier *= effects.energyGain;
+    if (effects.tacticalCooldown) state.tacticalCooldownMultiplier *= effects.tacticalCooldown;
+    if (effects.transformDrain) state.transformDrainMultiplier *= effects.transformDrain;
+    if (effects.transformGuard) state.transformGuardBonus += effects.transformGuard;
+    if (effects.passivePower) state.passivePower += effects.passivePower;
+    if (effects.pierce) state.pierceBonus += effects.pierce;
+    if (effects.waveRange) state.waveRangeMultiplier *= effects.waveRange;
+    if (effects.tacticalProjectiles) state.tacticalProjectileBonus += effects.tacticalProjectiles;
+    if (effects.droneBonus) state.droneBonus += effects.droneBonus;
+    if (effects.absorbCost) state.absorbCostMultiplier *= effects.absorbCost;
+    if (effects.assaultDamage) state.assaultDamageMultiplier *= effects.assaultDamage;
+    if (effects.heavyRange) state.heavyRangeMultiplier *= effects.heavyRange;
+    if (effects.maxLives) {
+      state.maxLives += effects.maxLives;
+      state.lives = Math.min(state.maxLives, state.lives + effects.maxLives);
       renderLifeSlots();
     }
     state.awaitingModule = false;
@@ -706,6 +746,17 @@ import {
     audio?.moduleEquipped?.();
     showUpgrade(module.detail, module.name);
     updateHud();
+  }
+
+  function populateModuleChoices() {
+    const modules = getModuleChoices(state.fighterId);
+    moduleButtons.forEach((button, index) => {
+      const module = modules[index];
+      button.dataset.moduleId = module.id;
+      button.querySelector("span").textContent = String(index + 1).padStart(2, "0");
+      button.querySelector("strong").textContent = module.name;
+      button.querySelector("small").textContent = module.detail;
+    });
   }
 
   function spawnFormation() {
@@ -736,6 +787,9 @@ import {
       phase: options.phase || 0,
       waveAmp: options.waveAmp || 0,
       color: options.color || fighter.secondary,
+      tactical: Boolean(options.tactical),
+      pierceLeft: options.pierce ?? (type === "rail" ? (fighter.id === "typhoon" ? 2 : 1) + state.pierceBonus : 0),
+      hitTargets: new Set(),
     });
   }
 
@@ -765,13 +819,13 @@ import {
     } else if (fighter.id === "rafale") {
       addPlayerBullet(x - 22, y + 6, -0.05, 700, "wave", apex ? 1.8 : 1.25, {
         phase: state.shotCount * 0.4,
-        waveAmp: apex ? 30 : 22,
+        waveAmp: (apex ? 30 : 22) * state.waveRangeMultiplier,
         color: fighter.accent,
         radius: 5,
       });
       addPlayerBullet(x + 22, y + 6, 0.05, 700, "wave", apex ? 1.8 : 1.25, {
         phase: Math.PI + state.shotCount * 0.4,
-        waveAmp: apex ? 30 : 22,
+        waveAmp: (apex ? 30 : 22) * state.waveRangeMultiplier,
         color: fighter.accent,
         radius: 5,
       });
@@ -797,14 +851,23 @@ import {
       }
     } else if (fighter.id === "j20") {
       const type = apex ? "seeker" : "drone";
-      addPlayerBullet(x - 29, y + 10, -0.03, apex ? 620 : 760, type, apex ? 1.9 : 1.2, {
-        color: fighter.accent,
-        radius: apex ? 5.5 : 4,
-      });
-      addPlayerBullet(x + 29, y + 10, 0.03, apex ? 620 : 760, type, apex ? 1.9 : 1.2, {
-        color: fighter.accent,
-        radius: apex ? 5.5 : 4,
-      });
+      const droneCount = 2 + state.droneBonus;
+      for (let drone = 0; drone < droneCount; drone += 1) {
+        const side = drone % 2 === 0 ? -1 : 1;
+        const rank = Math.floor(drone / 2);
+        addPlayerBullet(x + side * (29 + rank * 11), y + 10 + rank * 5, side * (0.03 + rank * 0.018), apex ? 620 : 760, type, apex ? 1.9 : 1.2, {
+          color: fighter.accent,
+          radius: apex ? 5.5 : 4,
+        });
+      }
+    } else if (fighter.id === "gripen" && state.droneBonus > 0 && state.shotCount % 2 === 0) {
+      for (let drone = 0; drone < state.droneBonus; drone += 1) {
+        const side = drone % 2 === 0 ? -1 : 1;
+        addPlayerBullet(x + side * (27 + drone * 4), y + 8, side * 0.08, 920, "drone", 1.45, {
+          color: fighter.secondary,
+          radius: 4,
+        });
+      }
     }
   }
 
@@ -842,13 +905,13 @@ import {
     fireSignatureWeapon(x, y, level);
 
     if (state.transformProgress > 0.72) {
-      const assaultDamage = 1.5 + state.transformProgress * 0.65;
+      const assaultDamage = (1.5 + state.transformProgress * 0.65) * state.assaultDamageMultiplier;
       [-0.38, -0.28, 0.28, 0.38].forEach((angle, index) => {
         addPlayerBullet(x + (index < 2 ? -18 : 18), y + 8, angle, 760, index % 2 ? "wave" : "heavy", assaultDamage, {
           color: index % 2 ? getFighter().secondary : getFighter().accent,
           radius: index % 2 ? 5 : 7,
           phase: state.shotCount * 0.25 + index,
-          waveAmp: 18,
+          waveAmp: 18 * state.waveRangeMultiplier,
         });
       });
       fireSignatureWeapon(x, y + 5, 5);
@@ -877,6 +940,7 @@ import {
     };
     const config = configs[type];
     return {
+      id: state.nextEnemyId++,
       type,
       x,
       y: -config.radius * 2,
@@ -916,6 +980,7 @@ import {
     const partHp = Math.round(hp * 0.18);
     state.enemyBullets = [];
     state.enemies.push({
+      id: state.nextEnemyId++,
       type: "boss",
       x: state.width / 2,
       y: -100,
@@ -1105,12 +1170,21 @@ import {
   function damagePlayer(x, y) {
     if (state.player.invulnerable > 0 || state.ended) return;
 
-    if (state.transformProgress > 0.78 && state.transformEnergy >= 22) {
-      state.transformEnergy -= 22;
+    const fighter = getFighter();
+    const absorbCost = fighter.absorbCost * state.absorbCostMultiplier;
+    if (state.transformProgress > 0.78 && state.transformEnergy >= absorbCost) {
+      state.transformEnergy -= absorbCost;
       state.player.invulnerable = 0.72;
       state.shake = 10;
       state.impactFlash = 0.12;
-      clearEnemyBulletsAround(state.player.x, state.player.y, 96);
+      const absorbed = clearEnemyBulletsAround(state.player.x, state.player.y, 96);
+      if (fighter.id === "su57") {
+        const chargeGain = 18 + absorbed * 5;
+        const cap = 100 + state.passivePower * 80;
+        state.revengeCharge = Math.min(cap, state.revengeCharge + chargeGain);
+        addFloatingText(x, y - 20, `REVENGE +${Math.round(chargeGain)}`, fighter.secondary);
+        audio?.passive?.("revenge");
+      }
       burst(x, y, getFighter().accent, 28, 240, 0.68);
       addFloatingText(x, y, "ARMOR ABSORB", getFighter().accent);
       audio?.armorAbsorb?.();
@@ -1178,6 +1252,7 @@ import {
       if (state.lives < state.maxLives) spawnPickup(enemy.x, enemy.y - 22, "repair");
       showUpgrade("母舰已摧毁", "THREAT CLEARED");
       state.awaitingModule = true;
+      populateModuleChoices();
       moduleChoice.hidden = false;
       moduleButtons[0]?.focus();
     } else {
@@ -1209,16 +1284,21 @@ import {
   }
 
   function findNearestEnemy(bullet) {
+    const fighter = getFighter();
     let nearest = null;
-    let nearestDistance = Infinity;
+    let bestScore = Infinity;
     for (const enemy of state.enemies) {
       if (enemy.y > bullet.y + 36) continue;
       const dx = enemy.x - bullet.x;
       const dy = enemy.y - bullet.y;
       const distance = dx * dx + dy * dy;
-      if (distance < nearestDistance) {
+      const priority = fighter.id === "j20" && (bullet.type === "seeker" || bullet.type === "drone")
+        ? enemy.type === "boss" ? 0.18 : enemy.type === "elite" ? 0.38 : enemy.type === "gunner" ? 0.72 : 1
+        : 1;
+      const score = distance * priority;
+      if (score < bestScore) {
         nearest = enemy;
-        nearestDistance = distance;
+        bestScore = score;
       }
     }
     return nearest;
@@ -1233,7 +1313,7 @@ import {
         bullet.baseX += bullet.vx * dt;
         bullet.x = bullet.baseX + Math.sin(bullet.age * 10 + bullet.phase) * bullet.waveAmp;
         bullet.y += bullet.vy * dt;
-      } else if (bullet.type === "seeker") {
+      } else if (bullet.type === "seeker" || bullet.type === "drone") {
         const target = findNearestEnemy(bullet);
         if (target) {
           const dx = target.x - bullet.x;
@@ -1341,6 +1421,28 @@ import {
       if (circlesOverlap(bullet, state.player)) {
         state.enemyBullets.splice(i, 1);
         damagePlayer(bullet.x, bullet.y);
+      } else if (getFighter().id === "gripen" && !bullet.grazed) {
+        const distance = Math.hypot(bullet.x - state.player.x, bullet.y - state.player.y);
+        const grazeRadius = state.player.radius + bullet.radius + 38;
+        if (distance < grazeRadius) {
+          bullet.grazed = true;
+          const energy = (4.2 + state.passivePower * 2) * state.energyGainMultiplier;
+          state.transformEnergy = Math.min(100, state.transformEnergy + energy);
+          state.grazeCount += 1;
+          state.overclockStacks = Math.min(10 + Math.round(state.passivePower * 5), state.overclockStacks + 1);
+          state.overclockTimer = 2.6;
+          addFloatingText(state.player.x, state.player.y - 28, "GRAZE // OVERCLOCK", getFighter().accent);
+          audio?.passive?.("graze");
+        }
+      }
+    }
+  }
+
+  function damageArea(x, y, radius, damage, ignoredEnemy = null) {
+    for (const target of state.enemies) {
+      if (target === ignoredEnemy) continue;
+      if (Math.hypot(target.x - x, target.y - y) <= radius + target.radius) {
+        target.hp -= target.type === "boss" ? damage * 0.42 : damage;
       }
     }
   }
@@ -1348,14 +1450,25 @@ import {
   function resolveBulletHits() {
     for (let bulletIndex = state.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
       const bullet = state.bullets[bulletIndex];
-      let hit = false;
+      let removeBullet = false;
 
       for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
         const enemy = state.enemies[enemyIndex];
+        if (bullet.hitTargets.has(enemy.id)) continue;
         if (!circlesOverlap(bullet, enemy)) continue;
 
-        state.bullets.splice(bulletIndex, 1);
+        bullet.hitTargets.add(enemy.id);
         let appliedDamage = bullet.damage;
+        if (getFighter().id === "typhoon" && bullet.type === "rail") {
+          state.railChain = Math.min(20, state.railChain + 1);
+          state.railChainTimer = 1.4;
+          appliedDamage *= 1 + Math.min(0.55, state.railChain * 0.045 + state.passivePower * 0.22);
+        }
+        if (getFighter().id === "f22" && bullet.type === "seeker") {
+          enemy.marked = true;
+          appliedDamage *= enemy.type === "boss" ? 1.08 : 1.16 + state.passivePower * 0.2;
+          audio?.passive?.("mark");
+        }
         if (enemy.type === "boss" && enemy.parts) {
           const relativeX = bullet.x - enemy.x;
           const partKey = relativeX < -34 ? "left" : relativeX > 34 ? "right" : null;
@@ -1377,24 +1490,49 @@ import {
           }
         }
         enemy.hp -= appliedDamage;
+        if (getFighter().id === "rafale" && bullet.type === "wave") {
+          enemy.resonance = (enemy.resonance || 0) + 1;
+          const threshold = Math.max(2, 4 - Math.floor(state.passivePower * 2));
+          if (enemy.resonance >= threshold) {
+            enemy.resonance = 0;
+            state.resonanceBursts += 1;
+            const radius = 78 * state.waveRangeMultiplier;
+            damageArea(enemy.x, enemy.y, radius, bullet.damage * (1.6 + state.passivePower), enemy);
+            burst(enemy.x, enemy.y, getFighter().accent, 30, 260, 0.72);
+            addFloatingText(enemy.x, enemy.y, "RESONANCE BURST", getFighter().secondary);
+            audio?.passive?.("resonance");
+          }
+        }
+        if (bullet.type === "heavy") {
+          const radius = 52 * state.heavyRangeMultiplier;
+          damageArea(bullet.x, bullet.y, radius, bullet.damage * 0.44, enemy);
+          burst(bullet.x, bullet.y, bullet.color, 12, 170, 0.42);
+        }
         burst(bullet.x, bullet.y, bullet.color, 4, 90, 0.24);
-        hit = true;
 
         if (enemy.type === "boss") {
           bossProgress.style.width = `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%`;
         }
 
-        if (enemy.hp <= 0) killEnemy(enemyIndex);
-        break;
+        if (bullet.pierceLeft > 0) {
+          bullet.pierceLeft -= 1;
+        } else {
+          removeBullet = true;
+          break;
+        }
       }
 
-      if (hit) continue;
+      if (removeBullet) state.bullets.splice(bulletIndex, 1);
+    }
+
+    for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
+      if (state.enemies[enemyIndex].hp <= 0) killEnemy(enemyIndex);
     }
   }
 
   function updatePickups(dt) {
     const fighter = getFighter();
-    const magnetRadius = 58 + fighter.agility * 12 + (fighter.id === "j20" ? 18 : 0);
+    const magnetRadius = fighter.pickupRadius;
     for (let i = state.pickups.length - 1; i >= 0; i -= 1) {
       const pickup = state.pickups[i];
       pickup.age += dt;
@@ -1457,13 +1595,29 @@ import {
     state.shake = Math.max(0, state.shake - dt * 30);
     state.impactFlash = Math.max(0, state.impactFlash - dt * 0.9);
     state.tacticalCooldown = Math.max(0, state.tacticalCooldown - dt);
-    state.transformProgress = nextTransformProgress(state.transformProgress, state.transformTarget, dt);
+    state.railChainTimer = Math.max(0, state.railChainTimer - dt);
+    if (state.railChainTimer === 0) state.railChain = 0;
+    state.overclockTimer = Math.max(0, state.overclockTimer - dt);
+    if (state.overclockTimer === 0) state.overclockStacks = Math.max(0, state.overclockStacks - dt * 1.4);
+    const fighter = getFighter();
+    state.transformProgress = nextTransformProgress(
+      state.transformProgress,
+      state.transformTarget,
+      dt,
+      fighter.transformDuration,
+      fighter.restoreDuration,
+    );
     state.transformEnergy = updateTransformEnergy(
       state.transformEnergy,
       state.transformProgress,
       state.transformTarget,
       dt,
-      state.energyGainMultiplier,
+      {
+        drain: fighter.energyDrain,
+        regen: fighter.energyRegen,
+        drainMultiplier: state.transformDrainMultiplier,
+        gainMultiplier: state.energyGainMultiplier,
+      },
     );
     if (state.transformEnergy <= 0 && state.transformTarget > 0) {
       state.transformTarget = 0;
@@ -1482,9 +1636,8 @@ import {
       updateHud();
     }
 
-    const fighter = getFighter();
-    const assaultMobility = 1 + state.transformProgress * 0.42;
-    const followBase = Math.max(0.00025, (0.0022 - fighter.agility * 0.00035) * assaultMobility);
+    const assaultMobility = 1 + state.transformProgress * 0.32;
+    const followBase = Math.max(0.00018, fighter.followBase * assaultMobility);
     const follow = 1 - Math.pow(followBase, dt);
     state.player.x += (state.pointer.x - state.player.x) * follow;
     state.player.y += (state.pointer.y - state.player.y) * follow;
@@ -1495,8 +1648,9 @@ import {
       const weapon = WEAPONS[state.weaponLevel - 1];
       const rushRate = state.combo >= 8 ? 0.82 : 1;
       const assaultRate = state.transformProgress > 0.72 ? 0.76 : 1;
+      const overclockRate = Math.max(0.55, 1 - state.overclockStacks * 0.048);
       state.fireTimer = weapon.rate * fighter.fireRate * state.fireRateMultiplier * assaultRate * rushRate
-        * (state.overdrive > 0 ? 0.58 : 1);
+        * overclockRate * (state.overdrive > 0 ? 0.58 : 1);
     }
 
     const bossAlive = state.enemies.some((enemy) => enemy.type === "boss");
@@ -1514,11 +1668,11 @@ import {
       state.formationTimer = Math.max(8, 13 - state.wave * 0.22) + Math.random() * 4;
     }
 
-    const nextWave = Math.floor(state.elapsed / 15) + 1;
+    const nextWave = Math.floor(state.elapsed / 12) + 1;
     if (nextWave !== state.wave) {
       state.wave = nextWave;
       showWave(`WAVE ${String(state.wave).padStart(2, "0")}`);
-      if (state.wave % 4 === 0 && state.bossWave !== state.wave) {
+      if (state.wave % 3 === 0 && state.bossWave !== state.wave) {
         state.bossWave = state.wave;
         spawnBoss();
       }
@@ -1565,6 +1719,7 @@ import {
   }
 
   function updateAbilityHud() {
+    const fighter = getFighter();
     const assault = state.transformProgress > 0.72;
     const transforming = Math.abs(state.transformProgress - state.transformTarget) > 0.02;
     const tactical = tacticalSpec(state.fighterId);
@@ -1576,7 +1731,17 @@ import {
     tacticalValue.textContent = tactical.name;
     tacticalCooldown.textContent = state.tacticalCooldown > 0 ? `${state.tacticalCooldown.toFixed(1)}s` : "READY";
     tacticalAbility.classList.toggle("is-cooling", state.tacticalCooldown > 0);
-    transformButton.disabled = state.transformTarget < 0.5 && !canEnterAssault(state.transformEnergy);
+    const passiveLabels = {
+      f22: `${fighter.passiveName} // ${state.enemies.filter((enemy) => enemy.marked).length} TARGETS`,
+      typhoon: `${fighter.passiveName} // CHAIN ${Math.floor(state.railChain)}`,
+      rafale: `${fighter.passiveName} // ${state.resonanceBursts} BURSTS`,
+      gripen: `${fighter.passiveName} // OC ${Math.floor(state.overclockStacks)} / GRAZE ${state.grazeCount}`,
+      su57: `${fighter.passiveName} // ${Math.round(state.revengeCharge)}%`,
+      j20: `${fighter.passiveName} // ${2 + state.droneBonus} DRONES`,
+    };
+    passiveStatus.textContent = passiveLabels[fighter.id];
+    transformButton.disabled = state.transformTarget < 0.5
+      && !canEnterAssault(state.transformEnergy, fighter.transformThreshold);
     tacticalButton.disabled = state.tacticalCooldown > 0;
   }
 
@@ -2002,6 +2167,13 @@ import {
         transformEnergy: state.transformEnergy,
         tacticalCooldown: state.tacticalCooldown,
         modules: [...state.modules],
+        passiveStatus: passiveStatus.textContent,
+        passivePower: state.passivePower,
+        pierceBonus: state.pierceBonus,
+        tacticalProjectileBonus: state.tacticalProjectileBonus,
+        droneBonus: state.droneBonus,
+        revengeCharge: state.revengeCharge,
+        overclockStacks: state.overclockStacks,
         bossKills: state.bossKills,
         visual3d: Boolean(visuals?.available),
         maxLives: state.maxLives,
@@ -2095,11 +2267,11 @@ import {
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
   transformButton.addEventListener("click", toggleTransform);
   tacticalButton.addEventListener("click", fireTactical);
-  moduleButtons.forEach((button) => button.addEventListener("click", () => applyModule(button.dataset.module)));
+  moduleButtons.forEach((button) => button.addEventListener("click", () => applyModule(button.dataset.moduleId)));
 
   const forceCanvas = new URLSearchParams(window.location.search).get("renderer") === "canvas";
   visuals = forceCanvas
-    ? { available: false, setFighter() {}, resizeBattle() {}, renderBattle() {}, dispose() {} }
+    ? { available: false, setFighter() {}, setPreviewMode() {}, resizeBattle() {}, renderBattle() {}, dispose() {} }
     : createVisualSystem({
       hangarCanvas: fighterPreview,
       battleCanvas: battleThreeCanvas,

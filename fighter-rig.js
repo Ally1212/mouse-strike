@@ -95,6 +95,8 @@ class FighterRig {
 
   setFighter(fighter) {
     this.fighter = fighter;
+    this.rig = fighter?.rig || {};
+    this.profile = this.rig.profile || "hunter";
     this.root.clear();
     this.parts = {};
     const accent = colorNumber(fighter?.accent, 0xd8ff45);
@@ -134,17 +136,21 @@ class FighterRig {
   }
 
   buildCore() {
+    const bodySize = this.rig.body || [18, 56, 10];
     const body = this.register("fuselage", new THREE.Group());
-    const bodyMesh = createPanel(this.bodyMaterial, [18, 56, 10]);
+    const bodyMesh = createPanel(this.bodyMaterial, bodySize);
     addOutline(bodyMesh);
     body.add(bodyMesh);
 
-    const spine = createPanel(this.panelMaterial, [6, 42, 12]);
-    spine.position.z = 6;
+    const spine = createPanel(this.panelMaterial, [Math.max(5, bodySize[0] * 0.34), bodySize[1] * 0.74, bodySize[2] * 1.18]);
+    spine.position.z = bodySize[2] * 0.58;
     body.add(spine);
 
     const nose = this.register("nose", new THREE.Group());
-    const noseMesh = new THREE.Mesh(new THREE.ConeGeometry(9, 34, 4), this.bodyMaterial);
+    const noseMesh = new THREE.Mesh(
+      new THREE.ConeGeometry(bodySize[0] * 0.48, bodySize[1] * 0.6, this.profile === "dualist" ? 6 : 4),
+      this.bodyMaterial,
+    );
     noseMesh.rotation.z = Math.PI;
     noseMesh.rotation.y = Math.PI / 4;
     addOutline(noseMesh);
@@ -163,7 +169,8 @@ class FighterRig {
         opacity: 0.88,
       }),
     );
-    canopy.scale.set(0.75, 1.35, 0.55);
+    const canopyScale = this.profile === "siege" ? 0.9 : this.profile === "skirmisher" ? 0.68 : 0.78;
+    canopy.scale.set(canopyScale, 1.35, 0.55);
     cockpit.add(canopy);
 
     const core = this.register("core", new THREE.Group());
@@ -172,16 +179,17 @@ class FighterRig {
   }
 
   buildWings() {
+    const wingSize = this.rig.wing || [38, 20, 4];
     [-1, 1].forEach((side) => {
       const wing = this.register(side < 0 ? "leftWing" : "rightWing", new THREE.Group());
-      const wingMesh = createPanel(this.bodyMaterial, [38, 20, 4]);
-      wingMesh.position.x = side * 18;
-      wingMesh.rotation.z = side * -0.24;
+      const wingMesh = createPanel(this.bodyMaterial, wingSize);
+      wingMesh.position.x = side * wingSize[0] * 0.46;
+      wingMesh.rotation.z = side * (this.profile === "skirmisher" ? -0.42 : -0.24);
       addOutline(wingMesh);
       wing.add(wingMesh);
 
-      const blade = createPanel(this.panelMaterial, [24, 5, 5]);
-      blade.position.set(side * 28, -5, 3);
+      const blade = createPanel(this.panelMaterial, [wingSize[0] * 0.64, Math.max(4, wingSize[1] * 0.24), wingSize[2] + 1]);
+      blade.position.set(side * wingSize[0] * 0.72, -wingSize[1] * 0.24, wingSize[2] * 0.7);
       wing.add(blade);
 
       const tail = this.register(side < 0 ? "leftTail" : "rightTail", new THREE.Group());
@@ -193,12 +201,16 @@ class FighterRig {
   }
 
   buildEngines() {
+    const engineSize = this.rig.engines || 8;
     [-1, 1].forEach((side) => {
       const engine = this.register(side < 0 ? "leftEngine" : "rightEngine", new THREE.Group());
-      const housing = createPanel(this.darkMaterial, [10, 28, 11]);
+      const housing = createPanel(this.darkMaterial, [engineSize + 2, 24 + engineSize * 0.55, engineSize + 3]);
       addOutline(housing, colorNumber(this.fighter?.accent, 0xd8ff45));
       engine.add(housing);
-      const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 3.6, 8, 10), this.energyMaterial);
+      const exhaust = new THREE.Mesh(
+        new THREE.CylinderGeometry(engineSize * 0.52, engineSize * 0.4, 7 + engineSize * 0.25, 10),
+        this.energyMaterial,
+      );
       exhaust.rotation.x = Math.PI / 2;
       exhaust.position.y = -17;
       engine.add(exhaust);
@@ -207,24 +219,28 @@ class FighterRig {
   }
 
   buildArms() {
+    const shoulderSize = this.rig.shoulders || [16, 12, 9];
+    const armLength = this.rig.arms || 24;
     [-1, 1].forEach((side) => {
       const shoulder = this.register(side < 0 ? "leftShoulder" : "rightShoulder", new THREE.Group());
-      const armor = createPanel(this.panelMaterial, [16, 12, 9]);
+      const armor = createPanel(this.panelMaterial, shoulderSize);
       armor.rotation.z = side * 0.18;
       addOutline(armor);
       shoulder.add(armor);
 
       const arm = this.register(side < 0 ? "leftArm" : "rightArm", new THREE.Group());
-      const upper = createPanel(this.bodyMaterial, [8, 24, 8]);
+      const upper = createPanel(this.bodyMaterial, [Math.max(7, shoulderSize[0] * 0.48), armLength, Math.max(7, shoulderSize[2] * 0.86)]);
       upper.position.y = -7;
       addOutline(upper);
       arm.add(upper);
-      const weapon = createPanel(this.panelMaterial, [7, 21, 7]);
-      weapon.position.y = -24;
+      const weaponWidth = this.profile === "lancer" ? 5 : this.profile === "siege" ? 10 : 7;
+      const weaponLength = this.profile === "lancer" ? armLength * 1.45 : armLength * 0.88;
+      const weapon = createPanel(this.panelMaterial, [weaponWidth, weaponLength, weaponWidth]);
+      weapon.position.y = -armLength * 0.96;
       arm.add(weapon);
       const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3.1, 9, 8), this.energyMaterial);
       muzzle.rotation.x = Math.PI / 2;
-      muzzle.position.y = -38;
+      muzzle.position.y = -armLength * 1.58;
       arm.add(muzzle);
     });
   }
@@ -235,27 +251,87 @@ class FighterRig {
     crestMesh.rotation.z = 0.02;
     crest.add(crestMesh);
 
-    if (this.fighter?.id === "j20" || this.fighter?.id === "gripen") {
-      [-1, 1].forEach((side) => {
-        const drone = this.register(side < 0 ? "leftDrone" : "rightDrone", new THREE.Group());
+    this.droneNames = [];
+    if (this.profile === "commander" || this.profile === "skirmisher") {
+      const droneCount = this.profile === "commander" ? 4 : 2;
+      for (let index = 0; index < droneCount; index += 1) {
+        const drone = this.register(`drone${index}`, new THREE.Group());
         const droneMesh = new THREE.Mesh(new THREE.OctahedronGeometry(5, 0), this.panelMaterial);
         droneMesh.scale.set(1.7, 0.65, 0.45);
         drone.add(droneMesh);
+        this.droneNames.push(`drone${index}`);
+      }
+    }
+
+    if (this.profile === "hunter") {
+      [-1, 1].forEach((side) => {
+        const pod = this.register(side < 0 ? "leftPod" : "rightPod", new THREE.Group());
+        const rack = createPanel(this.darkMaterial, [9, 23, 8]);
+        rack.position.z = 3;
+        pod.add(rack);
+        for (let slot = -1; slot <= 1; slot += 1) {
+          const seeker = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.6, 12, 6), this.energyMaterial);
+          seeker.rotation.x = Math.PI / 2;
+          seeker.position.set(slot * 2.8, -9, 5);
+          pod.add(seeker);
+        }
       });
+    } else if (this.profile === "lancer") {
+      const lance = this.register("lance", new THREE.Group());
+      const shaft = createPanel(this.panelMaterial, [5, 72, 6]);
+      shaft.position.y = -25;
+      lance.add(shaft);
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(4, 24, 4), this.energyMaterial);
+      tip.rotation.z = Math.PI;
+      tip.position.y = -73;
+      lance.add(tip);
+    } else if (this.profile === "dualist") {
+      [-1, 1].forEach((side) => {
+        const ring = this.register(side < 0 ? "leftRing" : "rightRing", new THREE.Group());
+        const emitter = new THREE.Mesh(new THREE.TorusGeometry(8, 1.8, 8, 24), this.energyMaterial);
+        ring.add(emitter);
+      });
+    } else if (this.profile === "siege") {
+      [-1, 1].forEach((side) => {
+        const cannon = this.register(side < 0 ? "leftCannon" : "rightCannon", new THREE.Group());
+        const barrel = createPanel(this.darkMaterial, [12, 42, 13]);
+        cannon.add(barrel);
+        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(4, 5.5, 11, 10), this.energyMaterial);
+        muzzle.rotation.x = Math.PI / 2;
+        muzzle.position.y = -25;
+        cannon.add(muzzle);
+      });
+    } else if (this.profile === "commander") {
+      const commandFin = this.register("commandFin", new THREE.Group());
+      const fin = createPanel(this.panelMaterial, [5, 30, 15]);
+      fin.rotation.x = 0.34;
+      commandFin.add(fin);
     }
   }
 
   setTransform(progress) {
     this.progress = Math.max(0, Math.min(1, progress));
-    const armor = phase(this.progress, 0.08, 0.34);
-    const chest = phase(this.progress, 0.22, 0.5);
-    const legs = phase(this.progress, 0.36, 0.68);
-    const wings = phase(this.progress, 0.5, 0.82);
-    const arms = phase(this.progress, 0.63, 0.9);
-    const lock = phase(this.progress, 0.84, 1);
+    const phases = this.rig.phases || {};
+    const readPhase = (name, fallback) => phase(this.progress, ...(phases[name] || fallback));
+    const armor = readPhase("armor", [0.08, 0.34]);
+    const chest = readPhase("chest", [0.22, 0.5]);
+    const legs = readPhase("legs", [0.36, 0.68]);
+    const wings = readPhase("wings", [0.5, 0.82]);
+    const arms = readPhase("arms", [0.63, 0.9]);
+    const lock = readPhase("lock", [0.84, 1]);
+    const poses = {
+      hunter: { wingX: 29, wingY: 14, wingZ: 1.18, wingTilt: 0.56, armX: 21, armZ: 0.08, tailX: 15 },
+      lancer: { wingX: 24, wingY: 19, wingZ: 0.78, wingTilt: 0.28, armX: 9, armZ: 0.02, tailX: 12 },
+      dualist: { wingX: 31, wingY: 10, wingZ: 1.34, wingTilt: 0.62, armX: 29, armZ: 0.48, tailX: 18 },
+      skirmisher: { wingX: 25, wingY: 18, wingZ: 1.5, wingTilt: 0.72, armX: 18, armZ: 0.28, tailX: 12 },
+      siege: { wingX: 36, wingY: 8, wingZ: 0.68, wingTilt: 0.24, armX: 29, armZ: 0.05, tailX: 21 },
+      commander: { wingX: 30, wingY: 17, wingZ: 1.04, wingTilt: 0.42, armX: 23, armZ: 0.18, tailX: 19 },
+    };
+    const pose = poses[this.profile] || poses.hunter;
 
     this.parts.fuselage.position.set(0, mix(0, 8, chest), mix(0, 4, chest));
-    this.parts.fuselage.scale.set(mix(1, 1.15, chest), mix(1, 0.68, chest), mix(1, 1.15, chest));
+    const chestWidth = this.profile === "siege" ? 1.32 : this.profile === "skirmisher" ? 1.04 : 1.15;
+    this.parts.fuselage.scale.set(mix(1, chestWidth, chest), mix(1, 0.68, chest), mix(1, 1.15, chest));
 
     this.parts.nose.position.set(0, mix(43, 18, chest), mix(0, 10, chest));
     this.parts.nose.rotation.x = mix(0, -1.34, chest);
@@ -268,12 +344,12 @@ class FighterRig {
 
     [-1, 1].forEach((side) => {
       const wing = this.parts[side < 0 ? "leftWing" : "rightWing"];
-      wing.position.set(side * mix(9, 27, wings), mix(0, 15, wings), mix(0, -7, wings));
-      wing.rotation.z = side * mix(0, 1.08, wings);
-      wing.rotation.y = side * mix(0, 0.52, wings);
+      wing.position.set(side * mix(9, pose.wingX, wings), mix(0, pose.wingY, wings), mix(0, -7, wings));
+      wing.rotation.z = side * mix(0, pose.wingZ, wings);
+      wing.rotation.y = side * mix(0, pose.wingTilt, wings);
 
       const tail = this.parts[side < 0 ? "leftTail" : "rightTail"];
-      tail.position.set(side * mix(7, 15, wings), mix(-25, 19, wings), mix(3, -2, wings));
+      tail.position.set(side * mix(7, pose.tailX, wings), mix(-25, 19, wings), mix(3, -2, wings));
       tail.rotation.z = side * mix(0, 0.72, wings);
 
       const engine = this.parts[side < 0 ? "leftEngine" : "rightEngine"];
@@ -282,32 +358,102 @@ class FighterRig {
       engine.rotation.z = side * mix(0, 0.08, legs);
 
       const shoulder = this.parts[side < 0 ? "leftShoulder" : "rightShoulder"];
-      shoulder.position.set(side * mix(22, 17, arms), mix(0, 10, arms), mix(-1, 7, arms));
+      const shoulderX = this.profile === "siege" ? 24 : 17;
+      shoulder.position.set(side * mix(22, shoulderX, arms), mix(0, 10, arms), mix(-1, 7, arms));
+      shoulder.rotation.x = 0;
       shoulder.rotation.z = side * mix(0.12, 0.38, arms);
       shoulder.scale.setScalar(mix(0.35, 1, arms));
 
       const arm = this.parts[side < 0 ? "leftArm" : "rightArm"];
-      arm.position.set(side * mix(28, 22, arms), mix(-1, -5, arms), mix(0, 4, arms));
-      arm.rotation.z = side * mix(Math.PI / 2, 0.12, arms);
+      arm.position.set(side * mix(28, pose.armX, arms), mix(-1, -5, arms), mix(0, 4, arms));
+      arm.rotation.z = side * mix(Math.PI / 2, pose.armZ, arms);
       arm.scale.setScalar(mix(0.25, 1, arms));
+    });
 
-      const drone = this.parts[side < 0 ? "leftDrone" : "rightDrone"];
-      if (drone) {
-        drone.position.set(side * mix(21, 42, wings), mix(-2, 4, wings), mix(4, 10, wings));
-        drone.rotation.z = side * (this.time * 0.7 + wings * 0.6);
-        drone.scale.setScalar(mix(0.2, 1, wings));
-      }
+    this.droneNames.forEach((name, index) => {
+      const drone = this.parts[name];
+      const side = index % 2 === 0 ? -1 : 1;
+      const rank = Math.floor(index / 2);
+      drone.position.set(
+        side * mix(20 + rank * 5, 38 + rank * 15, wings),
+        mix(-8 - rank * 5, 5 + rank * 8, wings),
+        mix(2, 11 + rank * 3, wings),
+      );
+      drone.rotation.z = side * (this.time * (0.7 + rank * 0.16) + wings * 0.6);
+      drone.scale.setScalar(mix(0.2, 1 - rank * 0.08, wings));
     });
 
     this.parts.crest.position.set(0, mix(-19, 25, lock), mix(2, 14, lock));
     this.parts.crest.rotation.x = mix(Math.PI / 2, 0, lock);
     this.parts.crest.scale.setScalar(mix(0.2, 1, lock));
 
-    const spread = this.fighter?.id === "su57" ? 1.12 : this.fighter?.id === "gripen" ? 0.88 : 1;
-    this.root.scale.set(spread, 1, 1);
+    if (this.parts.leftPod) {
+      [-1, 1].forEach((side) => {
+        const pod = this.parts[side < 0 ? "leftPod" : "rightPod"];
+        pod.position.set(side * mix(18, 25, arms), mix(-5, 12, arms), mix(1, 9, arms));
+        pod.rotation.z = side * mix(0.08, 0.32, arms);
+        pod.scale.setScalar(mix(0.45, 1, arms));
+      });
+    }
+    if (this.parts.lance) {
+      this.parts.lance.position.set(0, mix(-8, -4, lock), mix(-3, 14, lock));
+      this.parts.lance.scale.setScalar(mix(0.15, 1, lock));
+    }
+    if (this.parts.leftRing) {
+      [-1, 1].forEach((side) => {
+        const ring = this.parts[side < 0 ? "leftRing" : "rightRing"];
+        ring.position.set(side * mix(20, 34, arms), mix(-10, -28, arms), mix(0, 8, arms));
+        ring.rotation.y = side * mix(0, 0.42, arms);
+        ring.rotation.z = 0;
+        ring.scale.setScalar(mix(0.2, 1, arms));
+      });
+    }
+    if (this.parts.leftCannon) {
+      [-1, 1].forEach((side) => {
+        const cannon = this.parts[side < 0 ? "leftCannon" : "rightCannon"];
+        cannon.position.set(side * mix(15, 25, armor), mix(-2, 10, armor), mix(-4, 10, armor));
+        cannon.rotation.z = side * mix(Math.PI / 2, 0.05, armor);
+        cannon.scale.setScalar(mix(0.35, 1, armor));
+      });
+    }
+    if (this.parts.commandFin) {
+      this.parts.commandFin.position.set(0, mix(-20, 22, lock), mix(0, 11, lock));
+      this.parts.commandFin.rotation.x = mix(Math.PI / 2, 0, lock);
+      this.parts.commandFin.scale.setScalar(mix(0.2, 1, lock));
+    }
+
+    const spread = this.profile === "siege" ? 1.08 : this.profile === "skirmisher" ? 0.9 : 1;
+    const baseScale = this.rig.cameraScale || 1;
+    this.root.scale.set(baseScale * spread, baseScale, baseScale);
   }
 
-  update(time, transform, overdrive = 0) {
+  applyAction(action, time) {
+    if (action !== "tactical") return;
+    const recoil = (Math.sin(time * 8) + 1) * 0.5;
+    if (this.profile === "hunter") {
+      this.parts.leftPod.rotation.x = -0.18 - recoil * 0.16;
+      this.parts.rightPod.rotation.x = -0.18 - recoil * 0.16;
+    } else if (this.profile === "lancer") {
+      this.parts.lance.position.y -= recoil * 9;
+      this.parts.lance.scale.y = 1 + recoil * 0.16;
+    } else if (this.profile === "dualist") {
+      this.parts.leftRing.rotation.z = time * 2.4;
+      this.parts.rightRing.rotation.z = -time * 2.4;
+    } else if (this.profile === "skirmisher" || this.profile === "commander") {
+      this.droneNames.forEach((name, index) => {
+        const drone = this.parts[name];
+        drone.position.x *= 1.12 + recoil * 0.12;
+        drone.position.y += Math.sin(time * 5 + index) * 4;
+      });
+    } else if (this.profile === "siege") {
+      this.parts.leftCannon.position.y += recoil * 6;
+      this.parts.rightCannon.position.y += recoil * 6;
+      this.parts.leftShoulder.rotation.x = -recoil * 0.16;
+      this.parts.rightShoulder.rotation.x = -recoil * 0.16;
+    }
+  }
+
+  update(time, transform, overdrive = 0, action = "idle") {
     this.time = time;
     this.setTransform(transform);
     const pulse = 1 + Math.sin(time * 8) * 0.08 + overdrive * 0.04;
@@ -316,6 +462,7 @@ class FighterRig {
     this.coreMesh.scale.setScalar(pulse);
     this.energyMaterial.uniforms.time.value = time;
     this.energyMaterial.uniforms.intensity.value = 1 + transform * 0.9 + Math.min(1, overdrive) * 0.8;
+    this.applyAction(action, time);
     ["leftEngine", "rightEngine"].forEach((name) => {
       const exhaust = this.parts[name]?.userData.exhaust;
       if (exhaust) exhaust.scale.y = 0.85 + Math.random() * 0.34 + overdrive * 0.16;
@@ -437,6 +584,7 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
 
     let selectedFighter = fighter;
     let previewStart = performance.now();
+    let previewMode = "transform";
     let hangarFrame = 0;
 
     function resizeRenderer(renderer, canvas) {
@@ -460,9 +608,31 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
       if (size.changed && hangarComposer) hangarComposer.setSize(size.width, size.height);
       const seconds = now / 1000;
       const age = (now - previewStart) / 1000;
-      const previewTransform = reducedMotion ? 1 : age < 0.35 ? 0 : age < 1.8 ? smoothstep((age - 0.35) / 1.45) : 1;
-      hangarRig.update(seconds, previewTransform, 0);
-      hangarRig.root.rotation.y = Math.sin(seconds * 0.45) * 0.11;
+      const enterDuration = selectedFighter?.transformDuration || 1.45;
+      const restoreDuration = selectedFighter?.restoreDuration || 0.9;
+      let previewTransform = 0;
+      if (previewMode === "assault" || previewMode === "tactical") {
+        previewTransform = 1;
+      } else if (previewMode === "transform") {
+        if (reducedMotion) {
+          previewTransform = 0.72;
+        } else {
+          const hold = 0.6;
+          const cycle = enterDuration + restoreDuration + hold * 2;
+          const cycleTime = age % cycle;
+          previewTransform = cycleTime < enterDuration
+            ? smoothstep(cycleTime / enterDuration)
+            : cycleTime < enterDuration + hold
+              ? 1
+              : cycleTime < enterDuration + hold + restoreDuration
+                ? 1 - smoothstep((cycleTime - enterDuration - hold) / restoreDuration)
+                : 0;
+        }
+      }
+      hangarRig.update(seconds, previewTransform, previewMode === "tactical" ? 0.85 : 0, previewMode);
+      const profileYaw = selectedFighter?.rig?.profile === "lancer" ? 0.08 : selectedFighter?.rig?.profile === "siege" ? -0.06 : 0;
+      hangarRig.root.rotation.y = profileYaw + Math.sin(seconds * 0.45) * 0.11;
+      hangarRig.root.rotation.x = previewMode === "flight" ? 0.2 : previewMode === "tactical" ? -0.08 : 0.12;
       hangarRig.root.position.y = Math.sin(seconds * 1.2) * 2;
       if (hangarComposer) hangarComposer.render();
       else hangarRenderer.render(hangarScene, hangarCamera);
@@ -477,6 +647,10 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
         selectedFighter = nextFighter;
         hangarRig.setFighter(nextFighter);
         battleRig.setFighter(nextFighter);
+        previewStart = performance.now();
+      },
+      setPreviewMode(nextMode) {
+        previewMode = ["flight", "transform", "assault", "tactical"].includes(nextMode) ? nextMode : "transform";
         previewStart = performance.now();
       },
       resizeBattle(width, height) {
@@ -522,6 +696,7 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
     return {
       available: false,
       setFighter() {},
+      setPreviewMode() {},
       resizeBattle() {},
       renderBattle() {},
       dispose() {},

@@ -40,55 +40,72 @@
               <p class="eyebrow">SELECT AIRFRAME</p>
               <h2 id="hangar-title">选择战机</h2>
             </div>
-            <span id="selected-country" class="country-code">USA</span>
+            <div class="hangar-heading__identity">
+              <span id="selected-callsign">PHANTOM HUNTER</span>
+              <strong id="selected-country" class="country-code">USA</strong>
+            </div>
           </div>
 
-          <div class="fighter-feature">
+          <div class="fighter-workbench">
+            <div id="fighter-grid" class="fighter-grid" aria-label="可选战机">
+              <button class="fighter-option is-selected" type="button" data-fighter="f22" aria-pressed="true">
+                <span class="fighter-option__index">01</span><canvas width="112" height="58" aria-hidden="true"></canvas>
+                <span><b>USA</b><strong>F-22</strong><small>幽灵猎手</small></span>
+              </button>
+              <button class="fighter-option" type="button" data-fighter="typhoon" aria-pressed="false">
+                <span class="fighter-option__index">02</span><canvas width="112" height="58" aria-hidden="true"></canvas>
+                <span><b>GBR</b><strong>Typhoon</strong><small>风暴枪骑</small></span>
+              </button>
+              <button class="fighter-option" type="button" data-fighter="rafale" aria-pressed="false">
+                <span class="fighter-option__index">03</span><canvas width="112" height="58" aria-hidden="true"></canvas>
+                <span><b>FRA</b><strong>Rafale</strong><small>双相斗士</small></span>
+              </button>
+              <button class="fighter-option" type="button" data-fighter="gripen" aria-pressed="false">
+                <span class="fighter-option__index">04</span><canvas width="112" height="58" aria-hidden="true"></canvas>
+                <span><b>SWE</b><strong>Gripen</strong><small>北境游骑</small></span>
+              </button>
+              <button class="fighter-option" type="button" data-fighter="su57" aria-pressed="false">
+                <span class="fighter-option__index">05</span><canvas width="112" height="58" aria-hidden="true"></canvas>
+                <span><b>RUS</b><strong>Su-57</strong><small>重装破城</small></span>
+              </button>
+              <button class="fighter-option" type="button" data-fighter="j20" aria-pressed="false">
+                <span class="fighter-option__index">06</span><canvas width="112" height="58" aria-hidden="true"></canvas>
+                <span><b>CHN</b><strong>J-20</strong><small>蜂群指挥</small></span>
+              </button>
+            </div>
+
             <div class="hangar-stage">
               <canvas id="fighter-preview" width="720" height="300" aria-label="当前选择战机三维变形预览"></canvas>
               <div class="hangar-stage__status" aria-hidden="true">
                 <span>LIVE RIG</span>
-                <strong>FLIGHT → ASSAULT</strong>
+                <strong id="preview-status">FLIGHT → ASSAULT</strong>
+              </div>
+              <div class="preview-controls" role="group" aria-label="预览模式">
+                <button type="button" data-preview="flight" aria-pressed="false">飞行</button>
+                <button class="is-active" type="button" data-preview="transform" aria-pressed="true">变形</button>
+                <button type="button" data-preview="assault" aria-pressed="false">强袭</button>
+                <button type="button" data-preview="tactical" aria-pressed="false">技能</button>
               </div>
             </div>
-            <div class="fighter-copy">
+
+            <aside class="fighter-copy" aria-label="当前战机作战档案">
               <p id="selected-role" class="fighter-role">制空 / 隐身突击</p>
               <h3 id="selected-name">F-22 Raptor</h3>
               <p id="selected-special">幽灵矢量：变形后追加快速锁定的追踪导弹。</p>
-            </div>
-          </div>
+              <div class="fighter-traits">
+                <div><span>被动</span><strong id="selected-passive-name">幽灵标记</strong><p id="selected-passive">追踪弹命中后标记目标。</p></div>
+                <div><span>优势</span><p id="selected-strength">最高响应速度与多目标爆发</p></div>
+                <div><span>代价</span><p id="selected-tradeoff">装甲较薄</p></div>
+              </div>
 
-          <div class="fighter-stats" aria-label="当前战机属性">
-            <div><span>机动</span><i><b id="agility-stat"></b></i></div>
-            <div><span>火力</span><i><b id="firepower-stat"></b></i></div>
-            <div><span>装甲</span><i><b id="armor-stat"></b></i></div>
-          </div>
-
-          <div id="fighter-grid" class="fighter-grid" aria-label="可选战机">
-            <button class="fighter-option is-selected" type="button" data-fighter="f22" aria-pressed="true">
-              <canvas width="112" height="58" aria-hidden="true"></canvas>
-              <span><b>USA</b><strong>F-22</strong><small>隐身猎手</small></span>
-            </button>
-            <button class="fighter-option" type="button" data-fighter="typhoon" aria-pressed="false">
-              <canvas width="112" height="58" aria-hidden="true"></canvas>
-              <span><b>GBR</b><strong>Typhoon</strong><small>风暴截击</small></span>
-            </button>
-            <button class="fighter-option" type="button" data-fighter="rafale" aria-pressed="false">
-              <canvas width="112" height="58" aria-hidden="true"></canvas>
-              <span><b>FRA</b><strong>Rafale</strong><small>全域攻击</small></span>
-            </button>
-            <button class="fighter-option" type="button" data-fighter="gripen" aria-pressed="false">
-              <canvas width="112" height="58" aria-hidden="true"></canvas>
-              <span><b>SWE</b><strong>Gripen</strong><small>轻型游击</small></span>
-            </button>
-            <button class="fighter-option" type="button" data-fighter="su57" aria-pressed="false">
-              <canvas width="112" height="58" aria-hidden="true"></canvas>
-              <span><b>RUS</b><strong>Su-57</strong><small>重型破阵</small></span>
-            </button>
-            <button class="fighter-option" type="button" data-fighter="j20" aria-pressed="false">
-              <canvas width="112" height="58" aria-hidden="true"></canvas>
-              <span><b>CHN</b><strong>J-20</strong><small>远程压制</small></span>
-            </button>
+              <div class="fighter-stats" aria-label="当前战机属性">
+                <div><span>机动</span><i><b id="agility-stat"></b></i><em id="agility-value">96</em></div>
+                <div><span>火力</span><i><b id="firepower-stat"></b></i><em id="firepower-value">82</em></div>
+                <div><span>装甲</span><i><b id="armor-stat"></b></i><em id="armor-value">58</em></div>
+                <div><span>变形</span><i><b id="transform-stat"></b></i><em id="transform-value">91</em></div>
+                <div><span>战术</span><i><b id="tactical-stat"></b></i><em id="tactical-value-stat">93</em></div>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -126,13 +143,13 @@
               <div><strong>主动变形</strong><p>左键切换飞行与强袭机甲形态。</p></div>
             </li>
             <li>
-              <span class="rule-number">Q</span>
+              <span class="rule-number">04</span>
               <div><strong>战术爆发</strong><p>右键释放专属技能，摧毁 Boss 部件。</p></div>
             </li>
           </ol>
         </div>
 
-        <p class="menu-footer">高密度击破模式，机型数值按游戏平衡设计。</p>
+        <p class="menu-footer">高密度击破模式，机型数值按游戏平衡设计。按 <kbd>Q</kbd> 随时退出战斗。</p>
       </section>
 
       <section id="game-screen" class="game-screen" aria-label="游戏战场" hidden>
@@ -167,6 +184,10 @@
         </div>
 
         <div class="ability-hud" aria-live="polite">
+          <div class="passive-readout">
+            <span>PASSIVE</span>
+            <strong id="passive-status">幽灵标记 // 0 TARGETS</strong>
+          </div>
           <div class="ability ability--transform">
             <kbd>左键</kbd>
             <div>
@@ -207,9 +228,9 @@
           <p class="eyebrow">BOSS SALVAGE</p>
           <h2 id="module-title">选择强化模块</h2>
           <div class="module-choice__grid">
-            <button type="button" data-module="power"><span>01</span><strong>超导火控</strong><small>伤害提升，强化贯穿火力</small></button>
-            <button type="button" data-module="velocity"><span>02</span><strong>矢量超频</strong><small>射速提升，更快积累能量</small></button>
-            <button type="button" data-module="bulwark"><span>03</span><strong>反应装甲</strong><small>增加并恢复一格护盾</small></button>
+            <button type="button" data-module-slot="0"><span>01</span><strong>多重锁定</strong><small>追踪弹数量与处决伤害提升</small></button>
+            <button type="button" data-module-slot="1"><span>02</span><strong>相位隐匿</strong><small>降低变形耗能并延长保护</small></button>
+            <button type="button" data-module-slot="2"><span>03</span><strong>处决核心</strong><small>强化武器和标记伤害</small></button>
           </div>
         </section>
 

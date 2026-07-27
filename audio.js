@@ -34,6 +34,10 @@
     warning: [0.25, 0, 118, 0.008, 0.12, 0.22, 5, 0.45, 0, 0, -32, 0.07, 0.14, 0.02, 2, 0.08, 0.04, 0.72, 0.05, 0.24],
     bossPhase: [0.29, 0, 70, 0.008, 0.19, 0.42, 4, 1.8, 210, -1, 0, 0, 0.035, 0.74, 5, 0.08, 0.05, 0.7, 0.09],
     gameOver: [0.22, 0, 260, 0.01, 0.13, 0.35, 1, 1, -150, -1, -90, 0.11, 0.08, 0.02, 0, 0.06, 0.08, 0.74, 0.08],
+    graze: [0.12, 0, 760, 0, 0.018, 0.08, 1, 1, 180, 0, 0, 0, 0, 0.015, 12, 0.04, 0.02, 0.6, 0.018],
+    mark: [0.09, 0, 540, 0, 0.016, 0.065, 2, 1, 120, 0, 170, 0.025, 0, 0.02, 0, 0.05, 0, 0.62, 0.014],
+    resonance: [0.18, 0, 265, 0.004, 0.08, 0.2, 1, 1, 110, 0, 220, 0.055, 0.04, 0.08, 9, 0.045, 0.03, 0.72, 0.04],
+    revenge: [0.16, 0, 82, 0.002, 0.07, 0.18, 4, 1.8, 65, 0, 0, 0, 0, 0.62, 0, 0.1, 0.02, 0.64, 0.035],
   };
 
   class RetroAudioEngine {
@@ -329,6 +333,18 @@
       this.play("select", { pitch: 0.9 + index * 0.055, throttle: 40, volume: 0.72, priority: true });
     }
 
+    previewMode(mode, fighterId) {
+      const order = ["f22", "typhoon", "rafale", "gripen", "su57", "j20"];
+      const fighterPitch = 0.92 + Math.max(0, order.indexOf(fighterId)) * 0.035;
+      const modePitch = { flight: 0.92, transform: 1, assault: 1.08, tactical: 1.18 }[mode] || 1;
+      this.play(mode === "transform" ? "transform" : mode === "tactical" ? "overdrive" : "select", {
+        pitch: fighterPitch * modePitch,
+        throttle: 70,
+        volume: mode === "tactical" ? 0.74 : 0.58,
+        priority: true,
+      });
+    }
+
     launch(fighterId) {
       const heavy = fighterId === "su57" ? 0.84 : fighterId === "gripen" ? 1.12 : 1;
       this.play("launch", { pitch: heavy, volume: 0.92, priority: true });
@@ -413,6 +429,15 @@
     moduleEquipped() {
       this.weaponUpgrade();
       this.play("repair", { pitch: 1.18, volume: 0.66, priority: true });
+    }
+
+    passive(type) {
+      const preset = { graze: "graze", mark: "mark", resonance: "resonance", revenge: "revenge" }[type];
+      if (!preset) return;
+      this.play(preset, {
+        throttle: type === "mark" ? 120 : type === "graze" ? 90 : 40,
+        volume: type === "revenge" ? 0.72 : 0.54,
+      });
     }
 
     bossPart() {
