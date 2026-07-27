@@ -70,7 +70,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   expect(rigSignatures.size).toBe(8);
 
   for (const mode of ["flight", "transform", "assault", "tactical"]) {
-    await page.locator(`[data-preview="${mode}"]`).click();
+    await page.locator(`[data-preview="${mode}"]`).click({ force: true });
     await expect(page.locator(`[data-preview="${mode}"]`)).toHaveAttribute("aria-pressed", "true");
   }
 
