@@ -1,0 +1,11 @@
+{
+  "path": "references/fighters/rafale.jpg",
+  "type": "jpeg",
+  "bytes": 90559,
+  "width": 1280,
+  "height": 808,
+  "aspectRatio": 1.5841584158415842,
+  "technicalSuitability": "pass",
+  "warnings": [],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

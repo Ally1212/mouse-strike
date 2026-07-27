@@ -11,6 +11,20 @@ The 3D hangar, articulated fighter rigs, lighting, bloom, and WebGL battle layer
 
 The complete license is distributed with the installed package at `node_modules/three/LICENSE`.
 
+## Lucide
+
+Interface icons for deployment, preview, audio, rules, and mobile combat controls use Lucide.
+
+- Project: Lucide
+- Source: https://github.com/lucide-icons/lucide
+- License: ISC
+
+The complete license is distributed with the installed package at `node_modules/lucide/LICENSE`.
+
+## Fighter reference photography
+
+The hangar uses Wikimedia Commons aircraft photographs under public-domain and Creative Commons terms. Per-file source, author, and license details are listed in [docs/FIGHTER_IMAGE_CREDITS.md](docs/FIGHTER_IMAGE_CREDITS.md).
+
 ## ZzFX
 
 The procedural audio synthesis logic in `audio.js` is adapted from ZzFX.

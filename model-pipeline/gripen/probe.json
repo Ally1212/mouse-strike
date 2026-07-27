@@ -1,0 +1,11 @@
+{
+  "path": "references/fighters/gripen.jpg",
+  "type": "jpeg",
+  "bytes": 194290,
+  "width": 1280,
+  "height": 915,
+  "aspectRatio": 1.3989071038251366,
+  "technicalSuitability": "pass",
+  "warnings": [],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

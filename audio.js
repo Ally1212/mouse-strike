@@ -27,6 +27,8 @@
     pickup: [0.2, 0, 660, 0.004, 0.045, 0.12, 1, 1, 170, 0, 210, 0.035, 0, 0, 0, 0.04, 0.025, 0.75, 0.025],
     repair: [0.2, 0, 430, 0.008, 0.11, 0.22, 0, 1, 90, 0, 160, 0.07, 0.06, 0, 5, 0.035, 0.04, 0.8, 0.06],
     upgrade: [0.22, 0, 330, 0.004, 0.065, 0.15, 1, 1, 145, 0, 165, 0.04, 0.055, 0, 0, 0.035, 0.035, 0.78, 0.035],
+    toolSwitch: [0.14, 0, 480, 0.002, 0.035, 0.09, 1, 1, 110, 0, 180, 0.035, 0.04, 0.02, 9, 0.035, 0.02, 0.7, 0.018],
+    denied: [0.18, 0, 150, 0.004, 0.045, 0.16, 2, 1, -120, -1, -70, 0.04, 0.07, 0.08, 2, 0.08, 0.025, 0.64, 0.03],
     transform: [0.28, 0, 92, 0.012, 0.2, 0.42, 2, 1, 360, -1, 0, 0, 0.045, 0.07, 7, 0.05, 0.06, 0.82, 0.11],
     overdrive: [0.26, 0, 210, 0.004, 0.15, 0.3, 5, 0.35, 210, 0, 140, 0.05, 0.04, 0.04, 0, 0.07, 0.04, 0.78, 0.08],
     rush: [0.26, 0, 260, 0.004, 0.09, 0.22, 1, 1, 190, 0, 260, 0.05, 0.04, 0, 5, 0.04, 0.04, 0.8, 0.05],
@@ -328,13 +330,13 @@
     }
 
     fighterSelect(fighterId) {
-      const order = ["f22", "typhoon", "rafale", "gripen", "su57", "j20"];
+      const order = ["j20", "j35", "faxx", "f22", "typhoon", "rafale", "gripen", "su57"];
       const index = Math.max(0, order.indexOf(fighterId));
       this.play("select", { pitch: 0.9 + index * 0.055, throttle: 40, volume: 0.72, priority: true });
     }
 
     previewMode(mode, fighterId) {
-      const order = ["f22", "typhoon", "rafale", "gripen", "su57", "j20"];
+      const order = ["j20", "j35", "faxx", "f22", "typhoon", "rafale", "gripen", "su57"];
       const fighterPitch = 0.92 + Math.max(0, order.indexOf(fighterId)) * 0.035;
       const modePitch = { flight: 0.92, transform: 1, assault: 1.08, tactical: 1.18 }[mode] || 1;
       this.play(mode === "transform" ? "transform" : mode === "tactical" ? "overdrive" : "select", {
@@ -346,24 +348,65 @@
     }
 
     launch(fighterId) {
-      const heavy = fighterId === "su57" ? 0.84 : fighterId === "gripen" ? 1.12 : 1;
+      const heavy = fighterId === "su57" ? 0.84 : fighterId === "gripen" ? 1.12 : fighterId === "j35" ? 1.08 : fighterId === "faxx" ? 0.96 : 1;
       this.play("launch", { pitch: heavy, volume: 0.92, priority: true });
     }
 
     fire(fighterId, overdrive, x, width) {
       const map = {
+        j20: "fireSeeker",
+        j35: "fireSeeker",
+        faxx: "fireRail",
         f22: "fireSeeker",
         typhoon: "fireRail",
         rafale: "fireWave",
         gripen: "fireRail",
         su57: "fireHeavy",
-        j20: "fireSeeker",
       };
       this.play(overdrive ? "fireOverdrive" : map[fighterId] || "firePulse", {
         pan: this.panFromX(x, width),
         throttle: overdrive ? 68 : 82,
         volume: overdrive ? 0.58 : 0.66,
         variance: 0.045,
+      });
+    }
+
+    toolSwitch(pattern, fighterId) {
+      const fighterPitch = {
+        j20: 0.94,
+        j35: 1.12,
+        faxx: 1.02,
+        f22: 1.16,
+        typhoon: 1.04,
+        rafale: 1.1,
+        gripen: 1.24,
+        su57: 0.82,
+      }[fighterId] || 1;
+      const patternPitch = {
+        pulse: 0.96,
+        rail: 1.14,
+        wave: 1.05,
+        heavy: 0.78,
+        seeker: 1.2,
+        drone: 1.28,
+      }[pattern] || 1;
+      this.play("toolSwitch", { pitch: fighterPitch * patternPitch, throttle: 50, volume: 0.78, priority: true });
+      this.sequence([
+        { name: pattern === "heavy" ? "fireHeavy" : pattern === "wave" ? "fireWave" : pattern === "seeker" ? "fireSeeker" : "fireRail", delay: 82, pitch: patternPitch, volume: 0.5 },
+      ]);
+    }
+
+    transformDenied() {
+      this.play("denied", { volume: 0.74, priority: true });
+      this.sequence([{ name: "warning", delay: 115, pitch: 1.18, volume: 0.46 }]);
+    }
+
+    brief(open = true) {
+      this.play(open ? "select" : "back", {
+        pitch: open ? 1.04 : 0.92,
+        volume: open ? 0.5 : 0.44,
+        throttle: 80,
+        priority: true,
       });
     }
 
@@ -408,12 +451,14 @@
 
     tactical(fighterId, assault = false) {
       const pitchMap = {
+        j20: 0.96,
+        j35: 1.12,
+        faxx: 1.02,
         f22: 1.18,
         typhoon: 1.05,
         rafale: 1.12,
         gripen: 1.28,
         su57: 0.74,
-        j20: 0.96,
       };
       this.play(assault ? "bossPhase" : "overdrive", {
         pitch: (pitchMap[fighterId] || 1) * (assault ? 0.92 : 1),

@@ -1,0 +1,11 @@
+{
+  "path": "references/fighters/typhoon.jpg",
+  "type": "jpeg",
+  "bytes": 183437,
+  "width": 1280,
+  "height": 853,
+  "aspectRatio": 1.5005861664712778,
+  "technicalSuitability": "pass",
+  "warnings": [],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

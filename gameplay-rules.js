@@ -1,4 +1,4 @@
-import { getFighterProfile } from "./fighter-profiles.js";
+import { getFighterProfile, getToolModes } from "./fighter-profiles.js";
 
 export function clamp01(value) {
   return Math.max(0, Math.min(1, Number(value) || 0));
@@ -24,6 +24,21 @@ export function updateTransformEnergy(energy, progress, target, dt, options = {}
 
 export function canEnterAssault(energy, threshold = 28) {
   return Number(energy) >= threshold;
+}
+
+export function assaultDrainRate(duration = 12) {
+  return 100 / Math.max(1, Number(duration) || 12);
+}
+
+export function assaultSecondsRemaining(energy, duration = 12, drainMultiplier = 1) {
+  const rate = assaultDrainRate(duration) * Math.max(0.4, Number(drainMultiplier) || 1);
+  return Math.max(0, Number(energy) || 0) / rate;
+}
+
+export function toolModeSpec(fighterId, index = 0) {
+  const modes = getToolModes(fighterId);
+  const normalized = ((Math.trunc(index) % modes.length) + modes.length) % modes.length;
+  return modes[normalized];
 }
 
 export function tacticalSpec(fighterId) {

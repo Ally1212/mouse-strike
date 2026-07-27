@@ -1,0 +1,11 @@
+{
+  "path": "references/fighters/su57.jpg",
+  "type": "jpeg",
+  "bytes": 550901,
+  "width": 1200,
+  "height": 800,
+  "aspectRatio": 1.5,
+  "technicalSuitability": "pass",
+  "warnings": [],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

@@ -1,16 +1,35 @@
 import { createVisualSystem } from "./fighter-rig.js";
+import {
+  BookOpen,
+  Bot,
+  createIcons,
+  Crosshair,
+  LogOut,
+  MousePointer2,
+  Plane,
+  Play,
+  RefreshCw,
+  Volume2,
+  VolumeX,
+  Wrench,
+  X,
+} from "lucide";
 import "./audio.js";
 import {
   FIGHTERS,
   getFighterProfile,
   getModuleById,
   getModuleChoices,
+  getToolModes,
 } from "./fighter-profiles.js";
 import {
+  assaultDrainRate,
+  assaultSecondsRemaining,
   canEnterAssault,
   formationPattern,
   nextTransformProgress,
   tacticalSpec,
+  toolModeSpec,
   updateTransformEnergy,
 } from "./gameplay-rules.js";
 
@@ -27,13 +46,22 @@ import {
   const menuButton = document.querySelector("#menu-button");
   const soundToggle = document.querySelector("#sound-toggle");
   const volumeSlider = document.querySelector("#volume-slider");
+  const rulesButton = document.querySelector("#rules-button");
+  const rulesDialog = document.querySelector("#rules-dialog");
+  const rulesClose = document.querySelector("#rules-close");
   const audio = window.gameAudio;
   const fighterPreview = document.querySelector("#fighter-preview");
+  const fighterReferenceImage = document.querySelector("#fighter-reference-image");
+  const referenceCredit = document.querySelector("#reference-credit");
   const fighterOptions = [...document.querySelectorAll(".fighter-option")];
   const selectedCountry = document.querySelector("#selected-country");
   const selectedCallsign = document.querySelector("#selected-callsign");
   const selectedRole = document.querySelector("#selected-role");
   const selectedName = document.querySelector("#selected-name");
+  const selectedTransformName = document.querySelector("#selected-transform-name");
+  const selectedTransformDuration = document.querySelector("#selected-transform-duration");
+  const selectedTransformSummary = document.querySelector("#selected-transform-summary");
+  const selectedTacticalName = document.querySelector("#selected-tactical-name");
   const selectedSpecial = document.querySelector("#selected-special");
   const selectedPassiveName = document.querySelector("#selected-passive-name");
   const selectedPassive = document.querySelector("#selected-passive");
@@ -76,7 +104,10 @@ import {
   const tacticalValue = document.querySelector("#tactical-value");
   const tacticalCooldown = document.querySelector("#tactical-cooldown");
   const passiveStatus = document.querySelector("#passive-status");
+  const toolModeValue = document.querySelector("#tool-mode-value");
+  const toolModeIndex = document.querySelector("#tool-mode-index");
   const tacticalAbility = document.querySelector(".ability--tactical");
+  const toolButton = document.querySelector("#tool-button");
   const transformButton = document.querySelector("#transform-button");
   const tacticalButton = document.querySelector("#tactical-button");
   const moduleChoice = document.querySelector("#module-choice");
@@ -111,9 +142,9 @@ import {
   function loadSelectedFighterId() {
     try {
       const saved = window.localStorage.getItem("mouse-strike-fighter");
-      return FIGHTERS[saved] ? saved : "f22";
+      return FIGHTERS[saved] ? saved : "j20";
     } catch {
-      return "f22";
+      return "j20";
     }
   }
 
@@ -140,6 +171,7 @@ import {
     transformProgress: 0,
     transformTarget: 0,
     transformEnergy: 100,
+    toolModeIndex: 0,
     tacticalCooldown: 0,
     formationTimer: 7,
     formationIndex: 0,
@@ -274,6 +306,7 @@ import {
 
   function drawFighterThumbnail(option, fighter) {
     const thumb = option.querySelector("canvas");
+    if (!thumb) return;
     const thumbContext = thumb.getContext("2d");
     thumbContext.clearRect(0, 0, thumb.width, thumb.height);
     thumbContext.strokeStyle = "rgba(238, 242, 232, 0.08)";
@@ -301,12 +334,26 @@ import {
     selectedCountry.textContent = fighter.country;
     selectedCallsign.textContent = fighter.callsign;
     selectedRole.textContent = fighter.role;
-    selectedName.textContent = fighter.name;
+    selectedName.textContent = fighter.displayName || fighter.name;
+    selectedTransformName.textContent = fighter.transformation.label;
+    selectedTransformDuration.textContent = `${fighter.transformThreshold}% 启动 / ${fighter.assaultDuration.toFixed(1)} 秒`;
+    selectedTransformSummary.textContent = fighter.transformation.summary;
+    selectedTacticalName.textContent = fighter.tactical.name;
     selectedSpecial.textContent = fighter.special;
     selectedPassiveName.textContent = fighter.passiveName;
     selectedPassive.textContent = fighter.passive;
     selectedStrength.textContent = fighter.strength;
     selectedTradeoff.textContent = fighter.tradeoff;
+    fighterReferenceImage.src = fighter.reference.src;
+    fighterReferenceImage.alt = fighter.reference.alt;
+    if (fighter.reference.url) {
+      referenceCredit.href = fighter.reference.url;
+      referenceCredit.target = "_blank";
+    } else {
+      referenceCredit.removeAttribute("href");
+      referenceCredit.removeAttribute("target");
+    }
+    referenceCredit.textContent = fighter.reference.credit;
     agilityStat.style.width = `${fighter.stats.mobility}%`;
     firepowerStat.style.width = `${fighter.stats.firepower}%`;
     armorStat.style.width = `${fighter.stats.armor}%`;
@@ -317,12 +364,23 @@ import {
     armorValue.textContent = fighter.stats.armor;
     transformValue.textContent = fighter.stats.transform;
     tacticalValueStat.textContent = fighter.stats.tactical;
+    state.toolModeIndex = 0;
+    visuals?.setToolMode?.(0);
     startButtonLabel.textContent = `驾驶 ${fighter.shortName} 出击`;
-    fighterOptions.forEach((option) => {
+    const selectedIndex = fighterOptions.findIndex((option) => option.dataset.fighter === fighterId);
+    fighterOptions.forEach((option, index) => {
       const selected = option.dataset.fighter === fighterId;
+      const delta = selectedIndex < 0 ? 0 : index - selectedIndex;
       option.classList.toggle("is-selected", selected);
+      option.classList.toggle("is-before", delta < 0);
+      option.classList.toggle("is-after", delta > 0);
       option.setAttribute("aria-pressed", String(selected));
+      option.style.setProperty("--switch-delta", String(delta));
     });
+    const selectedOption = fighterOptions.find((option) => option.dataset.fighter === fighterId);
+    if (selectedOption && window.matchMedia("(max-width: 900px)").matches) {
+      selectedOption.scrollIntoView({ block: "nearest", inline: "center", behavior: persist ? "smooth" : "auto" });
+    }
     drawHangarPreview();
     setPreviewMode("transform");
     populateModuleChoices();
@@ -364,11 +422,12 @@ import {
       button.classList.toggle("is-active", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
+    const fighter = getFighter();
     const labels = {
-      flight: "FLIGHT CONFIGURATION",
-      transform: "MECHANICAL SHIFT",
-      assault: "ASSAULT FRAME",
-      tactical: "TACTICAL RELEASE",
+      flight: `${fighter.shortName} / 飞行形态`,
+      transform: `${fighter.shortName} / 变形演示`,
+      assault: fighter.transformation.label,
+      tactical: fighter.tactical.name,
     };
     previewStatus.textContent = labels[validMode];
     visuals?.setPreviewMode?.(validMode);
@@ -445,6 +504,7 @@ import {
     state.transformProgress = 0;
     state.transformTarget = 0;
     state.transformEnergy = 100;
+    state.toolModeIndex = 0;
     state.tacticalCooldown = 0;
     state.formationTimer = 7;
     state.formationIndex = 0;
@@ -495,13 +555,15 @@ import {
     state.pointer.active = false;
     gameOverPanel.hidden = true;
     moduleChoice.hidden = true;
+    gameScreen.classList.remove("is-choosing-module");
     bossHud.hidden = true;
     renderLifeSlots();
     updateHud();
-    showWave("TACTICAL DEPLOY");
+    showWave("战术系统已部署");
   }
 
   async function startGame() {
+    if (rulesDialog.open) rulesDialog.close();
     audio?.stopAll();
     const audioUnlock = audio?.unlock();
     audioUnlock?.then((ready) => {
@@ -551,6 +613,7 @@ import {
     document.body.classList.remove("game-active");
     state.awaitingModule = false;
     moduleChoice.hidden = true;
+    gameScreen.classList.remove("is-choosing-module");
     audio?.stopAll();
     audio?.back();
 
@@ -589,12 +652,35 @@ import {
     return cleared;
   }
 
+  function cycleToolMode() {
+    if (!state.running || state.ended || state.awaitingModule) return;
+    const modes = getToolModes(state.fighterId);
+    state.toolModeIndex = (state.toolModeIndex + 1) % modes.length;
+    const mode = modes[state.toolModeIndex];
+    visuals?.setToolMode?.(state.toolModeIndex);
+    state.fireTimer = Math.min(state.fireTimer, 0.04);
+    const patternNames = {
+      pulse: "脉冲弹道",
+      rail: "轨道弹道",
+      wave: "波动弹道",
+      heavy: "重型弹道",
+      seeker: "追踪弹道",
+      drone: "无人机弹道",
+    };
+    showUpgrade(`${mode.name} // ${patternNames[mode.pattern] || "专属弹道"}`, "工具切换");
+    burst(state.player.x, state.player.y, getFighter().secondary, 18, 170, 0.46);
+    audio?.toolSwitch?.(mode.pattern, state.fighterId);
+    updateWeaponHud();
+    updateAbilityHud();
+  }
+
   function toggleTransform() {
     if (!state.running || state.ended || state.awaitingModule) return;
     const entering = state.transformTarget < 0.5;
     const fighter = getFighter();
     if (entering && !canEnterAssault(state.transformEnergy, fighter.transformThreshold)) {
-      showUpgrade(`变形能量不足 // 需要 ${fighter.transformThreshold}%`, "ENERGY LOW");
+      showUpgrade(`变形能量不足 // 需要 ${fighter.transformThreshold}%`, "能量不足");
+      audio?.transformDenied?.();
       return;
     }
 
@@ -609,10 +695,11 @@ import {
     if (entering) {
       const cleared = clearEnemyBulletsAround(state.player.x, state.player.y, 150);
       state.transformEnergy = Math.min(100, state.transformEnergy + cleared * 0.45);
-      showUpgrade(`${getFighter().shortName} // 强袭机甲`, "MECHANICAL SHIFT");
+      const seconds = assaultSecondsRemaining(state.transformEnergy, fighter.assaultDuration, state.transformDrainMultiplier);
+      showUpgrade(`${fighter.transformation.label} // ${seconds.toFixed(1)} 秒`, "机械重组");
       burst(state.player.x, state.player.y, getFighter().accent, 54, 330, 1.1);
     } else {
-      showUpgrade(`${getFighter().shortName} // 飞行形态`, "FLIGHT RESTORE");
+      showUpgrade(`${getFighter().shortName} // 飞行形态`, "飞行复原");
       burst(state.player.x, state.player.y, getFighter().secondary, 30, 230, 0.72);
     }
     audio?.transform(entering);
@@ -622,7 +709,7 @@ import {
   function fireTactical() {
     if (!state.running || state.ended || state.awaitingModule) return;
     if (state.tacticalCooldown > 0) {
-      showUpgrade(`冷却 ${state.tacticalCooldown.toFixed(1)} SEC`, "TACTICAL SYSTEM");
+      showUpgrade(`冷却 ${state.tacticalCooldown.toFixed(1)} 秒`, "战术系统");
       return;
     }
 
@@ -638,13 +725,13 @@ import {
     const blastDamage = (assault ? 11 : 7) * fighter.damage * state.damageMultiplier
       * (1 + revenge / 180);
 
-    if (fighter.id === "f22") {
+    if (fighter.id === "f22" || fighter.id === "j35") {
       const marked = state.enemies.filter((enemy) => enemy.marked);
       marked.forEach((enemy) => {
         enemy.hp -= blastDamage * (1.35 + state.passivePower);
         enemy.marked = false;
         burst(enemy.x, enemy.y, fighter.accent, 18, 220, 0.55);
-        addFloatingText(enemy.x, enemy.y, "PHANTOM EXECUTE", fighter.accent);
+        addFloatingText(enemy.x, enemy.y, "幽灵处决", fighter.accent);
       });
     }
 
@@ -691,9 +778,10 @@ import {
         });
       }
     } else {
+      const projectileType = spec.projectile === "drone" ? "drone" : "seeker";
       const center = (projectileCount - 1) / 2;
       for (let shot = 0; shot < projectileCount; shot += 1) {
-        addPlayerBullet(x, y, (shot - center) * 0.045, 680 + (shot % 3) * 45, "seeker", assault ? 3.5 : 2.6, {
+        addPlayerBullet(x, y, (shot - center) * 0.045, 680 + (shot % 3) * 45, projectileType, assault ? 3.5 : 2.6, {
           color: shot % 2 ? fighter.secondary : fighter.accent,
           radius: 6,
           tactical: true,
@@ -712,7 +800,7 @@ import {
     state.shake = assault ? 17 : 11;
     state.impactFlash = 0.18;
     audio?.tactical?.(fighter.id, assault);
-    showUpgrade(`${spec.name} // ${cleared} BULLETS PURGED`, "TACTICAL RELEASE");
+    showUpgrade(`${spec.name} // 清除 ${cleared} 枚敌弹`, "战术释放");
     burst(x, y, fighter.accent, assault ? 72 : 48, assault ? 390 : 310, 1.15);
     updateAbilityHud();
   }
@@ -743,6 +831,7 @@ import {
     }
     state.awaitingModule = false;
     moduleChoice.hidden = true;
+    gameScreen.classList.remove("is-choosing-module");
     audio?.moduleEquipped?.();
     showUpgrade(module.detail, module.name);
     updateHud();
@@ -798,7 +887,7 @@ import {
     const fighter = getFighter();
     const apex = level >= 5;
 
-    if (fighter.id === "f22" && state.shotCount % (apex ? 2 : 3) === 0) {
+    if ((fighter.id === "f22" || fighter.id === "j35") && state.shotCount % (apex ? 2 : 3) === 0) {
       addPlayerBullet(x - 20, y + 7, -0.04, 610, "seeker", apex ? 2.5 : 1.8, {
         color: fighter.accent,
         radius: 6,
@@ -849,7 +938,7 @@ import {
           radius: 7,
         });
       }
-    } else if (fighter.id === "j20") {
+    } else if (fighter.id === "j20" || fighter.id === "faxx") {
       const type = apex ? "seeker" : "drone";
       const droneCount = 2 + state.droneBonus;
       for (let drone = 0; drone < droneCount; drone += 1) {
@@ -877,29 +966,21 @@ import {
     const level = state.weaponLevel;
     state.shotCount += 1;
 
-    if (level === 1) {
-      addPlayerBullet(x - 7, y, 0, 800);
-      addPlayerBullet(x + 7, y, 0, 800);
-    } else if (level === 2) {
-      [-0.12, 0, 0.12].forEach((angle) => addPlayerBullet(x, y, angle, 810));
-    } else if (level === 3) {
-      [-0.24, -0.12, 0, 0.12, 0.24].forEach((angle) => addPlayerBullet(x, y, angle, 790));
-    } else if (level === 4) {
-      [-0.11, 0, 0.11].forEach((angle) => addPlayerBullet(x, y, angle, 820));
-      addPlayerBullet(x - 13, y + 2, -0.07, 690, "wave", 1.35, {
-        phase: 0,
-        waveAmp: 22,
-        color: COLORS.wave,
-        radius: 5,
-      });
-      addPlayerBullet(x + 13, y + 2, 0.07, 690, "wave", 1.35, {
-        phase: Math.PI,
-        waveAmp: 22,
-        color: COLORS.wave,
-        radius: 5,
-      });
-    } else {
-      [-0.2, -0.1, 0, 0.1, 0.2].forEach((angle) => addPlayerBullet(x, y, angle, 830));
+    const mode = toolModeSpec(state.fighterId, state.toolModeIndex);
+    const extraShots = Math.floor((level - 1) / 2);
+    const shotCount = Math.min(7, mode.count + extraShots);
+    const center = (shotCount - 1) / 2;
+    const damage = mode.damage * (1 + (level - 1) * 0.12);
+    for (let shot = 0; shot < shotCount; shot += 1) {
+      const angle = (shot - center) * mode.spread;
+      const options = {
+        color: shot % 2 ? getFighter().secondary : getFighter().accent,
+        radius: mode.pattern === "heavy" ? 8 : mode.pattern === "wave" || mode.pattern === "seeker" ? 5.5 : 4.2,
+        phase: state.shotCount * 0.35 + shot,
+        waveAmp: mode.pattern === "wave" ? (22 + level * 2) * state.waveRangeMultiplier : 0,
+        pierce: mode.pattern === "rail" ? 1 + state.pierceBonus : undefined,
+      };
+      addPlayerBullet(x, y, angle, mode.speed, mode.pattern, damage, options);
     }
 
     fireSignatureWeapon(x, y, level);
@@ -1002,10 +1083,10 @@ import {
         right: { hp: partHp, maxHp: partHp, destroyed: false },
       },
     });
-    bossName.textContent = `重装母舰 / PHASE 1`;
+    bossName.textContent = "重装母舰 / 第一阶段";
     bossProgress.style.width = "100%";
     bossHud.hidden = false;
-    showWave("WARNING // BOSS");
+    showWave("警告 // 首领来袭");
     audio?.bossWarning();
   }
 
@@ -1072,11 +1153,11 @@ import {
     state.enemyBullets = [];
     state.shake = nextPhase === 3 ? 18 : 12;
     state.impactFlash = 0.22;
-    bossName.textContent = `重装母舰 / PHASE ${nextPhase}`;
+    bossName.textContent = `重装母舰 / 第 ${nextPhase} 阶段`;
     audio?.bossPhase(nextPhase);
     showUpgrade(
-      nextPhase === 3 ? "核心暴走 // FINAL FORM" : "装甲展开 // PHASE 2",
-      "BOSS TRANSFORM",
+      nextPhase === 3 ? "核心暴走 // 最终形态" : "装甲展开 // 第二阶段",
+      "首领变形",
     );
     burst(enemy.x, enemy.y, nextPhase === 3 ? COLORS.boss : COLORS.elite, 56, 300, 1.1);
   }
@@ -1137,14 +1218,14 @@ import {
           const apex = state.transformStage === 2;
           showUpgrade(
             `${fighter.shortName} // ${apex ? "终极形态" : "战术翼展开"}`,
-            apex ? "APEX TRANSFORM" : "TACTICAL TRANSFORM",
+            apex ? "终极变形" : "战术变形",
           );
           state.transformPulse = 1.35;
           state.shake = apex ? 13 : 9;
           audio?.transform(apex);
           burst(state.player.x, state.player.y, fighter.accent, apex ? 52 : 38, apex ? 310 : 255, 1.05);
         } else {
-          showUpgrade(`LV.${weapon.level} ${weapon.name}`, "WEAPON UPGRADE");
+          showUpgrade(`等级 ${weapon.level} ${weapon.name}`, "武器升级");
           audio?.weaponUpgrade();
           burst(state.player.x, state.player.y, fighter.accent, 34, 245, 0.9);
           state.shake = 7;
@@ -1153,7 +1234,7 @@ import {
     } else {
       state.overdrive = 6;
       audio?.overdrive();
-      showUpgrade("极限超载 // 6 SEC", "MAXIMUM OUTPUT");
+      showUpgrade("极限超载 // 6 秒", "最大火力");
       burst(state.player.x, state.player.y, COLORS.overdrive, 40, 280, 0.95);
     }
     updateHud();
@@ -1162,7 +1243,7 @@ import {
   function collectRepair() {
     audio?.pickup("repair");
     state.lives = Math.min(state.maxLives, state.lives + 1);
-    showUpgrade("护盾恢复 +1", "SYSTEM RECOVERY");
+    showUpgrade("护盾恢复 +1", "系统修复");
     burst(state.player.x, state.player.y, COLORS.repair, 22, 190, 0.75);
     updateHud();
   }
@@ -1182,11 +1263,11 @@ import {
         const chargeGain = 18 + absorbed * 5;
         const cap = 100 + state.passivePower * 80;
         state.revengeCharge = Math.min(cap, state.revengeCharge + chargeGain);
-        addFloatingText(x, y - 20, `REVENGE +${Math.round(chargeGain)}`, fighter.secondary);
+        addFloatingText(x, y - 20, `反击能量 +${Math.round(chargeGain)}`, fighter.secondary);
         audio?.passive?.("revenge");
       }
       burst(x, y, getFighter().accent, 28, 240, 0.68);
-      addFloatingText(x, y, "ARMOR ABSORB", getFighter().accent);
+      addFloatingText(x, y, "装甲吸收", getFighter().accent);
       audio?.armorAbsorb?.();
       updateHud();
       return;
@@ -1239,8 +1320,8 @@ import {
     if (previousCombo < 8 && state.combo >= 8) {
       state.overdrive = Math.max(state.overdrive, 3.5);
       audio?.rush();
-      showUpgrade("RUSH MODE // 火力狂热", "CHAIN REACTION");
-      addFloatingText(state.width / 2, state.height * 0.42, "RUSH ×8", COLORS.overdrive);
+      showUpgrade("狂热模式 // 火力提升", "连击反应");
+      addFloatingText(state.width / 2, state.height * 0.42, "狂热 ×8", COLORS.overdrive);
       state.shake = 10;
     }
 
@@ -1250,10 +1331,11 @@ import {
       state.enemyBullets = [];
       [-38, 0, 38].forEach((offset) => spawnPickup(enemy.x + offset, enemy.y, "core"));
       if (state.lives < state.maxLives) spawnPickup(enemy.x, enemy.y - 22, "repair");
-      showUpgrade("母舰已摧毁", "THREAT CLEARED");
+      showUpgrade("母舰已摧毁", "威胁解除");
       state.awaitingModule = true;
       populateModuleChoices();
       moduleChoice.hidden = false;
+      gameScreen.classList.add("is-choosing-module");
       moduleButtons[0]?.focus();
     } else {
       const guaranteedCore = enemy.type === "elite" || state.kills % 4 === 0;
@@ -1292,7 +1374,7 @@ import {
       const dx = enemy.x - bullet.x;
       const dy = enemy.y - bullet.y;
       const distance = dx * dx + dy * dy;
-      const priority = fighter.id === "j20" && (bullet.type === "seeker" || bullet.type === "drone")
+      const priority = (fighter.id === "j20" || fighter.id === "faxx") && (bullet.type === "seeker" || bullet.type === "drone")
         ? enemy.type === "boss" ? 0.18 : enemy.type === "elite" ? 0.38 : enemy.type === "gunner" ? 0.72 : 1
         : 1;
       const score = distance * priority;
@@ -1402,6 +1484,7 @@ import {
   function updateEnemyBullets(dt) {
     for (let i = state.enemyBullets.length - 1; i >= 0; i -= 1) {
       const bullet = state.enemyBullets[i];
+      if (!bullet) continue;
       bullet.age += dt;
       if (bullet.curve) {
         const angle = bullet.curve * dt;
@@ -1431,7 +1514,7 @@ import {
           state.grazeCount += 1;
           state.overclockStacks = Math.min(10 + Math.round(state.passivePower * 5), state.overclockStacks + 1);
           state.overclockTimer = 2.6;
-          addFloatingText(state.player.x, state.player.y - 28, "GRAZE // OVERCLOCK", getFighter().accent);
+          addFloatingText(state.player.x, state.player.y - 28, "擦弹 // 超频", getFighter().accent);
           audio?.passive?.("graze");
         }
       }
@@ -1464,7 +1547,7 @@ import {
           state.railChainTimer = 1.4;
           appliedDamage *= 1 + Math.min(0.55, state.railChain * 0.045 + state.passivePower * 0.22);
         }
-        if (getFighter().id === "f22" && bullet.type === "seeker") {
+        if ((getFighter().id === "f22" || getFighter().id === "j35") && bullet.type === "seeker") {
           enemy.marked = true;
           appliedDamage *= enemy.type === "boss" ? 1.08 : 1.16 + state.passivePower * 0.2;
           audio?.passive?.("mark");
@@ -1483,8 +1566,8 @@ import {
               state.transformEnergy = Math.min(100, state.transformEnergy + 18);
               state.shake = 15;
               audio?.bossPart?.();
-              addFloatingText(bullet.x, bullet.y, `${partKey.toUpperCase()} POD DESTROYED`, COLORS.elite);
-              showUpgrade("武器舱摧毁 // 弹幕削弱", "BOSS PART BREAK");
+              addFloatingText(bullet.x, bullet.y, `${partKey === "left" ? "左侧" : "右侧"}武器舱摧毁`, COLORS.elite);
+              showUpgrade("武器舱摧毁 // 弹幕削弱", "首领部件破坏");
               burst(bullet.x, bullet.y, COLORS.elite, 46, 290, 1.05);
             }
           }
@@ -1499,7 +1582,7 @@ import {
             const radius = 78 * state.waveRangeMultiplier;
             damageArea(enemy.x, enemy.y, radius, bullet.damage * (1.6 + state.passivePower), enemy);
             burst(enemy.x, enemy.y, getFighter().accent, 30, 260, 0.72);
-            addFloatingText(enemy.x, enemy.y, "RESONANCE BURST", getFighter().secondary);
+            addFloatingText(enemy.x, enemy.y, "共振爆发", getFighter().secondary);
             audio?.passive?.("resonance");
           }
         }
@@ -1613,7 +1696,7 @@ import {
       state.transformTarget,
       dt,
       {
-        drain: fighter.energyDrain,
+        drain: assaultDrainRate(fighter.assaultDuration),
         regen: fighter.energyRegen,
         drainMultiplier: state.transformDrainMultiplier,
         gainMultiplier: state.energyGainMultiplier,
@@ -1621,7 +1704,7 @@ import {
     );
     if (state.transformEnergy <= 0 && state.transformTarget > 0) {
       state.transformTarget = 0;
-      showUpgrade("能量耗尽 // 自动恢复飞行形态", "ENERGY DEPLETED");
+      showUpgrade("能量耗尽 // 自动恢复飞行形态", "能量耗尽");
       audio?.transform(false);
     }
     state.player.radius = 16 + state.transformProgress * 5;
@@ -1649,7 +1732,8 @@ import {
       const rushRate = state.combo >= 8 ? 0.82 : 1;
       const assaultRate = state.transformProgress > 0.72 ? 0.76 : 1;
       const overclockRate = Math.max(0.55, 1 - state.overclockStacks * 0.048);
-      state.fireTimer = weapon.rate * fighter.fireRate * state.fireRateMultiplier * assaultRate * rushRate
+      const toolRate = toolModeSpec(state.fighterId, state.toolModeIndex).rate;
+      state.fireTimer = weapon.rate * toolRate * fighter.fireRate * state.fireRateMultiplier * assaultRate * rushRate
         * overclockRate * (state.overdrive > 0 ? 0.58 : 1);
     }
 
@@ -1671,7 +1755,7 @@ import {
     const nextWave = Math.floor(state.elapsed / 12) + 1;
     if (nextWave !== state.wave) {
       state.wave = nextWave;
-      showWave(`WAVE ${String(state.wave).padStart(2, "0")}`);
+      showWave(`第 ${String(state.wave).padStart(2, "0")} 波`);
       if (state.wave % 3 === 0 && state.bossWave !== state.wave) {
         state.bossWave = state.wave;
         spawnBoss();
@@ -1698,23 +1782,24 @@ import {
 
   function updateWeaponHud() {
     const weapon = WEAPONS[state.weaponLevel - 1];
+    const tool = toolModeSpec(state.fighterId, state.toolModeIndex);
     const overdriveActive = state.overdrive > 0;
-    const form = state.transformStage === 2 ? "APEX" : state.transformStage === 1 ? "TACTICAL" : "BASE";
+    const form = state.transformStage === 2 ? "终极" : state.transformStage === 1 ? "战术" : "基础";
     weaponValue.textContent = overdriveActive
-      ? `OVERDRIVE ${state.overdrive.toFixed(1)}s`
-      : `LV.${weapon.level} ${weapon.name} / ${form}`;
+      ? `极限超载 ${state.overdrive.toFixed(1)} 秒`
+      : `等级 ${weapon.level} ${tool.name} / ${form}`;
     weaponHud.classList.toggle("is-overdrive", overdriveActive);
 
     if (overdriveActive) {
       weaponProgress.style.width = `${(state.overdrive / 6) * 100}%`;
-      weaponProgressLabel.textContent = "MAXIMUM OUTPUT";
+      weaponProgressLabel.textContent = "最大火力输出";
     } else if (state.weaponLevel === WEAPONS.length) {
       weaponProgress.style.width = "100%";
-      weaponProgressLabel.textContent = "CORE → OVERDRIVE";
+      weaponProgressLabel.textContent = "核心充满后进入超载";
     } else {
       const progress = (state.weaponEnergy / weapon.threshold) * 100;
       weaponProgress.style.width = `${progress}%`;
-      weaponProgressLabel.textContent = `${state.weaponEnergy} / ${weapon.threshold} CORE`;
+      weaponProgressLabel.textContent = `${state.weaponEnergy} / ${weapon.threshold} 核心`;
     }
   }
 
@@ -1723,21 +1808,29 @@ import {
     const assault = state.transformProgress > 0.72;
     const transforming = Math.abs(state.transformProgress - state.transformTarget) > 0.02;
     const tactical = tacticalSpec(state.fighterId);
+    const toolModes = getToolModes(state.fighterId);
+    const tool = toolModes[state.toolModeIndex];
+    toolModeValue.textContent = tool.name;
+    toolModeIndex.textContent = `${state.toolModeIndex + 1} / ${toolModes.length}`;
     formValue.textContent = transforming
       ? state.transformTarget > 0.5 ? "机械重组中" : "飞行复原中"
-      : assault ? "强袭机甲" : "飞行形态";
+      : assault ? fighter.transformation.label : "飞行形态";
     formEnergy.style.width = `${Math.max(0, state.transformEnergy)}%`;
-    formEnergyLabel.textContent = `${Math.round(state.transformEnergy)}%`;
+    formEnergyLabel.textContent = assault || state.transformTarget > 0.5
+      ? `${assaultSecondsRemaining(state.transformEnergy, fighter.assaultDuration, state.transformDrainMultiplier).toFixed(1)} 秒`
+      : `${Math.round(state.transformEnergy)}% / 最低 ${fighter.transformThreshold}%`;
     tacticalValue.textContent = tactical.name;
-    tacticalCooldown.textContent = state.tacticalCooldown > 0 ? `${state.tacticalCooldown.toFixed(1)}s` : "READY";
+    tacticalCooldown.textContent = state.tacticalCooldown > 0 ? `${state.tacticalCooldown.toFixed(1)} 秒` : "就绪";
     tacticalAbility.classList.toggle("is-cooling", state.tacticalCooldown > 0);
     const passiveLabels = {
-      f22: `${fighter.passiveName} // ${state.enemies.filter((enemy) => enemy.marked).length} TARGETS`,
-      typhoon: `${fighter.passiveName} // CHAIN ${Math.floor(state.railChain)}`,
-      rafale: `${fighter.passiveName} // ${state.resonanceBursts} BURSTS`,
-      gripen: `${fighter.passiveName} // OC ${Math.floor(state.overclockStacks)} / GRAZE ${state.grazeCount}`,
+      f22: `${fighter.passiveName} // ${state.enemies.filter((enemy) => enemy.marked).length} 个目标`,
+      j35: `${fighter.passiveName} // ${state.enemies.filter((enemy) => enemy.marked).length} 个目标`,
+      typhoon: `${fighter.passiveName} // 连续贯穿 ${Math.floor(state.railChain)}`,
+      rafale: `${fighter.passiveName} // ${state.resonanceBursts} 次爆发`,
+      gripen: `${fighter.passiveName} // 超频 ${Math.floor(state.overclockStacks)} / 擦弹 ${state.grazeCount}`,
       su57: `${fighter.passiveName} // ${Math.round(state.revengeCharge)}%`,
-      j20: `${fighter.passiveName} // ${2 + state.droneBonus} DRONES`,
+      j20: `${fighter.passiveName} // ${2 + state.droneBonus} 架无人机`,
+      faxx: `${fighter.passiveName} // ${1 + state.droneBonus} 架僚机`,
     };
     passiveStatus.textContent = passiveLabels[fighter.id];
     transformButton.disabled = state.transformTarget < 0.5
@@ -1748,7 +1841,7 @@ import {
   function updateHud() {
     const fighter = getFighter();
     scoreValue.textContent = String(state.score).padStart(6, "0");
-    comboValue.textContent = state.combo >= 8 ? `RUSH ×${state.combo}` : `×${state.combo}`;
+    comboValue.textContent = state.combo >= 8 ? `狂热 ×${state.combo}` : `×${state.combo}`;
     [...livesValue.children].forEach((life, index) => {
       life.classList.toggle("is-empty", index >= state.lives);
     });
@@ -1837,7 +1930,7 @@ import {
       context.globalAlpha = 1;
     }
 
-    if (fighter.id === "j20" && stage >= 1) {
+    if ((fighter.id === "j20" || fighter.id === "faxx") && stage >= 1) {
       const droneOffset = stage === 2 ? 39 : 34;
       context.fillStyle = fighter.accent;
       [-droneOffset, droneOffset].forEach((offset) => {
@@ -1850,7 +1943,7 @@ import {
     }
 
     context.fillStyle = state.overdrive > 0 ? COLORS.overdrive : fighter.accent;
-    const engineCount = fighter.shape.twinTail ? 2 : 1;
+    const engineCount = fighter.rig?.engineCount || 1;
     for (let i = 0; i < engineCount; i += 1) {
       const offset = engineCount === 2 ? (i === 0 ? -7 : 7) : 0;
       context.fillRect(offset - 2, 21, 4, 13 + Math.random() * (state.overdrive > 0 ? 18 : 9));
@@ -2165,6 +2258,9 @@ import {
         transformProgress: state.transformProgress,
         transformTarget: state.transformTarget,
         transformEnergy: state.transformEnergy,
+        assaultDuration: getFighter().assaultDuration,
+        toolModeIndex: state.toolModeIndex,
+        toolMode: toolModeSpec(state.fighterId, state.toolModeIndex).id,
         tacticalCooldown: state.tacticalCooldown,
         modules: [...state.modules],
         passiveStatus: passiveStatus.textContent,
@@ -2176,6 +2272,8 @@ import {
         overclockStacks: state.overclockStacks,
         bossKills: state.bossKills,
         visual3d: Boolean(visuals?.available),
+        rigSignature: visuals?.getRigSignature?.() || "",
+        hangarInteraction: visuals?.getHangarInteraction?.() || null,
         maxLives: state.maxLives,
         overdrive: state.overdrive,
         bullets: state.bullets.length,
@@ -2216,6 +2314,7 @@ import {
         updateWeaponHud();
       },
       toggleTransform: () => toggleTransform(),
+      cycleToolMode: () => cycleToolMode(),
       fireTactical: () => fireTactical(),
       chooseModule: (moduleId) => applyModule(moduleId),
       setTransformEnergy: (value) => {
@@ -2243,6 +2342,21 @@ import {
     audio?.setVolume(Number(event.target.value) / 100);
     syncAudioControls();
   });
+  rulesButton.addEventListener("click", async () => {
+    await audio?.unlock();
+    audio?.brief?.(true);
+    rulesDialog.showModal();
+  });
+  rulesClose.addEventListener("click", () => {
+    audio?.brief?.(false);
+    rulesDialog.close();
+  });
+  rulesDialog.addEventListener("click", (event) => {
+    if (event.target === rulesDialog) {
+      audio?.brief?.(false);
+      rulesDialog.close();
+    }
+  });
   window.addEventListener("resize", () => {
     if (!gameScreen.hidden) resizeCanvas();
   });
@@ -2252,7 +2366,7 @@ import {
       exitGame();
     } else if (event.code === "Space" && !gameScreen.hidden) {
       event.preventDefault();
-      toggleTransform();
+      fireTactical();
     } else if (event.key.toLowerCase() === "e" && !gameScreen.hidden) {
       event.preventDefault();
       fireTactical();
@@ -2261,23 +2375,44 @@ import {
   canvas.addEventListener("pointermove", (event) => setPointer(event.clientX, event.clientY));
   canvas.addEventListener("pointerdown", (event) => {
     setPointer(event.clientX, event.clientY);
-    if (event.pointerType === "mouse" && event.button === 0) toggleTransform();
-    if (event.pointerType === "mouse" && event.button === 2) fireTactical();
+    if (event.pointerType === "mouse" && event.button === 0) cycleToolMode();
+    if (event.pointerType === "mouse" && event.button === 2) toggleTransform();
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  toolButton.addEventListener("click", cycleToolMode);
   transformButton.addEventListener("click", toggleTransform);
   tacticalButton.addEventListener("click", fireTactical);
   moduleButtons.forEach((button) => button.addEventListener("click", () => applyModule(button.dataset.moduleId)));
 
   const forceCanvas = new URLSearchParams(window.location.search).get("renderer") === "canvas";
   visuals = forceCanvas
-    ? { available: false, setFighter() {}, setPreviewMode() {}, resizeBattle() {}, renderBattle() {}, dispose() {} }
+    ? { available: false, setFighter() {}, setPreviewMode() {}, setToolMode() {}, resizeBattle() {}, renderBattle() {}, getRigSignature() { return ""; }, getHangarInteraction() { return null; }, dispose() {} }
     : createVisualSystem({
       hangarCanvas: fighterPreview,
       battleCanvas: battleThreeCanvas,
       fighter: getFighter(),
       reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     });
+  createIcons({
+    icons: {
+      BookOpen,
+      Bot,
+      Crosshair,
+      LogOut,
+      MousePointer2,
+      Plane,
+      Play,
+      RefreshCw,
+      Volume2,
+      VolumeX,
+      Wrench,
+      X,
+    },
+    attrs: {
+      "aria-hidden": "true",
+      "stroke-width": 1.8,
+    },
+  });
   initializeHangar();
   syncAudioControls();
   installQaControls();

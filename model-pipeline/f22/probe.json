@@ -1,0 +1,11 @@
+{
+  "path": "references/fighters/f22.jpg",
+  "type": "jpeg",
+  "bytes": 164512,
+  "width": 1280,
+  "height": 960,
+  "aspectRatio": 1.3333333333333333,
+  "technicalSuitability": "pass",
+  "warnings": [],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}

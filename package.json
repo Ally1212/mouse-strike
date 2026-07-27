@@ -1,6 +1,6 @@
 {
   "name": "mouse-strike",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "lucide": "^1.27.0",
     "three": "0.185.1"
   },
   "devDependencies": {

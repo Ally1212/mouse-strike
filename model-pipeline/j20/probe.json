@@ -1,0 +1,11 @@
+{
+  "path": "references/fighters/j20.jpg",
+  "type": "jpeg",
+  "bytes": 115857,
+  "width": 1280,
+  "height": 854,
+  "aspectRatio": 1.4988290398126465,
+  "technicalSuitability": "pass",
+  "warnings": [],
+  "note": "This is only technical image probing. Semantic object suitability still requires visual inspection."
+}
