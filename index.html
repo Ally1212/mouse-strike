@@ -3,9 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#090b0a" />
+    <meta name="theme-color" content="#f8f1df" />
     <title>鼠标突击队 | Mouse Strike</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="paper-theme.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到游戏</a>
@@ -32,13 +33,13 @@
             </div>
             <div>
               <h1 id="game-title">鼠标突击队</h1>
-              <span>战机部署与作战控制台</span>
+              <span>选择战机 · 立即出击</span>
             </div>
           </div>
           <div class="topbar-actions">
             <button id="rules-button" class="utility-button utility-button--rules" type="button">
               <i data-lucide="book-open" aria-hidden="true"></i>
-              <span class="rules-button__copy"><small>首次出击先看</small><b>作战规则</b></span>
+              <span class="rules-button__copy"><small>30 秒上手</small><b>玩法</b></span>
             </button>
           </div>
         </header>
@@ -47,7 +48,7 @@
           <div class="fighter-workbench">
             <div class="hangar-heading">
               <div>
-                <p class="eyebrow">战机编队 / 8 架可选</p>
+                <p class="eyebrow">选择一架，直接开打</p>
                 <h2 id="hangar-title">选择战机</h2>
               </div>
               <div class="hangar-heading__identity">
@@ -81,6 +82,10 @@
               <button class="fighter-option" type="button" data-fighter="su57" aria-pressed="false">
                 <span><b>俄罗斯</b><strong>Su-57</strong></span>
               </button>
+              <button class="fighter-option fighter-option--locked" type="button" data-fighter="hypersonic" aria-pressed="false" aria-label="超音速 X-10，可自由预览，驾驶出击需要概念暗号">
+                <span><b>概念</b><strong>超音速 X-10</strong></span>
+                <em class="fighter-lock"><i data-lucide="key-round" aria-hidden="true"></i><span>概念暗号</span></em>
+              </button>
             </nav>
 
             <div class="hangar-stage">
@@ -88,11 +93,11 @@
               <canvas id="fighter-preview" width="720" height="300" aria-label="当前选择战机三维变形预览"></canvas>
               <div class="hangar-stage__status" aria-hidden="true">
                 <span>实时渲染</span>
-                <strong id="preview-status">飞行形态 → 强袭形态</strong>
+                <strong id="preview-status">歼-20 / 飞行形态</strong>
               </div>
               <div class="preview-controls" role="group" aria-label="预览模式">
-                <button type="button" data-preview="flight" aria-pressed="false"><i data-lucide="plane" aria-hidden="true"></i><span>飞行</span></button>
-                <button class="is-active" type="button" data-preview="transform" aria-pressed="true"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变形</span></button>
+                <button class="is-active" type="button" data-preview="flight" aria-pressed="true"><i data-lucide="plane" aria-hidden="true"></i><span>飞行</span></button>
+                <button type="button" data-preview="transform" aria-pressed="false"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变形</span></button>
                 <button type="button" data-preview="assault" aria-pressed="false"><i data-lucide="bot" aria-hidden="true"></i><span>强袭</span></button>
                 <button type="button" data-preview="tactical" aria-pressed="false"><i data-lucide="crosshair" aria-hidden="true"></i><span>技能</span></button>
               </div>
@@ -105,13 +110,13 @@
                 <h3 id="selected-name">歼-20 威龙</h3>
                 <div class="fighter-form-summary">
                   <strong id="selected-transform-name">威龙天将形态</strong>
-                  <span id="selected-transform-duration">25% 启动 / 14.1 秒</span>
+                  <span id="selected-transform-duration">3 核心启动 / 10 秒</span>
                 </div>
                 <p id="selected-transform-summary">机鼻折叠为龙首胸甲，指挥角先行张开，无人翼逐架离舱，五段冠阵最后升起统合蜂群。</p>
               </div>
               <div class="fighter-traits">
                 <div><span>核心机制</span><strong id="selected-passive-name">协同火控</strong><p id="selected-passive">无人翼自动分配目标并优先攻击精英与首领部件。</p></div>
-                <div><span>战术技能</span><strong id="selected-tactical-name">威龙蜂群</strong><p id="selected-special">命令全部无人翼集中锁定高价值目标并释放追踪弹群。</p></div>
+                <div><span>专属技能</span><strong id="selected-tactical-name">威龙蜂群</strong><p id="selected-special">命令全部无人翼集中锁定高价值目标并释放追踪弹群。</p></div>
                 <div><span>优势</span><p id="selected-strength">最高战术覆盖与稳定远程压制</p></div>
                 <div><span>代价</span><p id="selected-tradeoff">伤害依赖无人翼协同</p></div>
               </div>
@@ -128,46 +133,78 @@
         </section>
 
         <footer class="deployment-bar">
-          <div class="deployment-guide">
-            <div class="deployment-guide__title"><span>快速操作</span><strong>左键换装，右键蓄能变形</strong></div>
-            <div class="control-strip" aria-label="核心操作">
-              <span><i data-lucide="mouse-pointer-2" aria-hidden="true"></i><b>移动</b><small>鼠标跟随</small></span>
-              <span><i data-lucide="wrench" aria-hidden="true"></i><b>切工具</b><small>鼠标左键</small></span>
-              <span><i data-lucide="refresh-cw" aria-hidden="true"></i><b>变形</b><small>鼠标右键</small></span>
-              <span><i data-lucide="crosshair" aria-hidden="true"></i><b>战术</b><small>Space / E</small></span>
-              <span><i data-lucide="log-out" aria-hidden="true"></i><b>退出</b><small>Q</small></span>
+          <div class="map-select" data-map="usa">
+            <span class="map-select__label">战区</span>
+            <button id="map-select-trigger" class="map-select__control" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="map-select-menu">
+              <i data-lucide="map" aria-hidden="true"></i>
+              <strong id="map-select-value">美国领空</strong>
+              <i class="map-select__chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="map-select-menu" class="map-select__menu" role="listbox" aria-label="选择作战地图" hidden>
+              <button type="button" role="option" data-map-option="usa" aria-selected="true"><strong>美国领空</strong><small>雷达墙 · 航道门 · 空投增援</small></button>
+              <button type="button" role="option" data-map-option="pacific" aria-selected="false"><strong>太平洋风暴线</strong><small>风暴结构 · 海上航线</small></button>
+              <button type="button" role="option" data-map-option="arctic" aria-selected="false"><strong>北极光走廊</strong><small>极光冻结 · 冰晶障碍</small></button>
+              <button type="button" role="option" data-map-option="sky-corridor" aria-selected="false"><strong>天穹回廊</strong><small>相位能源门 · 高速航道</small></button>
+              <button type="button" role="option" data-map-option="meteor-rift" aria-selected="false"><strong>陨星禁区</strong><small>陨石预警 · 可破坏结构</small></button>
             </div>
+            <small id="map-feature" class="sr-only">雷达墙 · 航道门 · 空投增援</small>
+            <select id="map-select" class="sr-only" tabindex="-1" aria-hidden="true"><option value="usa">美国领空</option><option value="pacific">太平洋风暴线</option><option value="arctic">北极光走廊</option><option value="sky-corridor">天穹回廊</option><option value="meteor-rift">陨星禁区</option></select>
           </div>
           <button id="start-button" class="start-button" type="button">
             <i class="start-button__icon" data-lucide="play" aria-hidden="true"></i>
-            <span id="start-button-label">驾驶 歼-20 出击</span>
+            <span id="start-button-label">驾驶出击</span>
           </button>
         </footer>
 
         <dialog id="rules-dialog" class="mission-brief" aria-labelledby="rules-title">
           <div class="mission-brief__header">
-            <div><p class="eyebrow">30 秒上手</p><h2 id="rules-title">作战规则</h2></div>
+            <div><p class="eyebrow">30 秒上手</p><h2 id="rules-title">玩法</h2></div>
             <button id="rules-close" class="icon-button" type="button" aria-label="关闭作战规则"><i data-lucide="x" aria-hidden="true"></i></button>
           </div>
           <ol class="rule-list">
             <li>
               <kbd class="rule-key">鼠标</kbd>
-              <div><strong>移动并自动射击</strong><p>战机会跟随指针，主武器自动开火。</p></div>
+              <div><strong>跟着鼠标飞</strong><p>战机自动开火，你只管走位躲弹。</p></div>
             </li>
             <li>
               <kbd class="rule-key">左键</kbd>
-              <div><strong>切换武器</strong><p>循环切换三种工具与弹道。</p></div>
+              <div><strong>切换攻击形态</strong><p>普通战机 3 种；激光会预热、持续输出并积累热量。</p></div>
             </li>
             <li>
               <kbd class="rule-key">右键</kbd>
-              <div><strong>能量变形</strong><p>能量达标后变形，耗尽自动复原。</p></div>
+              <div><strong>消耗 3 球变身</strong><p>集满后出现提示，右键手动启动，强袭持续 10 秒。</p></div>
             </li>
             <li>
               <kbd class="rule-key">Space</kbd>
-              <div><strong>释放战术技能</strong><p>Space 或 E 释放技能，Q 退出战斗。</p></div>
+              <div><strong>召唤僚机</strong><p>僚机限时协同射击，冷却结束后可再次召唤。</p></div>
+            </li>
+            <li>
+              <kbd class="rule-key">E</kbd>
+              <div><strong>释放专属必杀</strong><p>清除近身敌弹并打出当前战机的高伤技能。</p></div>
             </li>
           </ol>
-          <p class="mission-brief__note"><strong>直接开打：</strong>开局就是三级主炮和满变形能量。</p>
+          <div class="pickup-guide" aria-label="掉落球作用">
+            <span><i class="pickup-dot pickup-dot--core"></i><strong>红球</strong>变身能量</span>
+            <span><i class="pickup-dot pickup-dot--evolution"></i><strong>紫球</strong>机体进化</span>
+            <span><i class="pickup-dot pickup-dot--trajectory"></i><strong>蓝球</strong>弹道升级</span>
+            <span><i class="pickup-dot pickup-dot--shield"></i><strong>绿球</strong>耐久护盾</span>
+            <span><i class="pickup-dot pickup-dot--barrier"></i><strong>金球</strong>大型屏障</span>
+            <span><i class="pickup-dot pickup-dot--ally"></i><strong>青球</strong>友军支援</span>
+            <span><i class="pickup-dot pickup-dot--meteor"></i><strong>陨星核</strong>补球或贯穿</span>
+          </div>
+        </dialog>
+
+        <dialog id="unlock-dialog" class="unlock-dialog" aria-labelledby="unlock-title">
+          <form id="unlock-form">
+            <div class="mission-brief__header">
+              <div><p class="eyebrow">绝密概念机</p><h2 id="unlock-title">验证概念暗号</h2></div>
+              <button id="unlock-close" class="icon-button" type="button" aria-label="关闭暗号验证窗口"><i data-lucide="x" aria-hidden="true"></i></button>
+            </div>
+            <p>这不是付费战机。模型与属性可以自由查看，驾驶出击前需要验证 4 位概念暗号。</p>
+            <label><span>概念暗号</span><input id="unlock-password" type="password" inputmode="numeric" autocomplete="off" minlength="4" maxlength="4" pattern="[0-9]{4}" aria-describedby="unlock-password-hint" required /><small id="unlock-password-hint">输入 4 位概念暗号</small></label>
+            <p id="unlock-error" class="unlock-error" role="alert" hidden>暗号不正确，请重新输入。</p>
+            <button class="start-button start-button--small" type="submit"><i data-lucide="key-round" aria-hidden="true"></i><span>验证暗号并驾驶</span></button>
+          </form>
         </dialog>
       </section>
 
@@ -186,10 +223,12 @@
             <strong id="combo-value">×1</strong>
           </div>
           <div class="hud-block hud-block--right">
-            <span class="hud-label">护盾</span>
-            <div id="lives-value" class="lives" aria-label="剩余三格护盾">
-              <span></span><span></span><span></span>
+            <div class="health-header">
+              <span class="hud-label">机体耐久</span>
+              <strong id="health-value">130 / 130</strong>
             </div>
+            <div class="health-track" aria-hidden="true"><span id="health-progress"></span></div>
+            <span id="shield-value" class="shield-value">护盾 0</span>
           </div>
         </div>
 
@@ -207,37 +246,37 @@
             <span>被动</span>
             <strong id="passive-status">幽灵标记 // 0 个目标</strong>
           </div>
-          <div class="ability ability--tool">
+          <div class="ability ability--skill">
             <kbd>左键</kbd>
             <div>
-              <span>工具切换</span>
-              <strong id="tool-mode-value">矢量机炮</strong>
+              <span>攻击形态</span>
+              <strong id="skill-value">矢量机炮</strong>
             </div>
-            <em id="tool-mode-index">1 / 3</em>
+            <em id="skill-cooldown">1 / 3</em>
           </div>
           <div class="ability ability--transform">
             <kbd>右键</kbd>
             <div>
-              <span>能量变形</span>
+              <span>核心变身</span>
               <strong id="form-value">飞行形态</strong>
               <i><b id="form-energy"></b></i>
             </div>
-            <em id="form-energy-label">100%</em>
+            <em id="form-energy-label">0 / 3 球</em>
           </div>
-          <div class="ability ability--tactical">
+          <div class="ability ability--wingman">
             <kbd>Space</kbd>
             <div>
-              <span>战术技能</span>
-              <strong id="tactical-value">幽灵猎杀</strong>
+              <span>僚机支援</span>
+              <strong id="wingman-value">猛禽猎杀队</strong>
             </div>
-            <em id="tactical-cooldown">就绪</em>
+            <em id="wingman-cooldown">就绪</em>
           </div>
         </div>
 
         <div class="mobile-actions" aria-label="战斗技能">
-          <button id="tool-button" type="button" aria-label="切换工具形态"><i data-lucide="wrench" aria-hidden="true"></i><span>工具</span></button>
+          <button id="skill-button" type="button" aria-label="切换攻击形态"><i data-lucide="crosshair" aria-hidden="true"></i><span>形态</span></button>
           <button id="transform-button" type="button" aria-label="切换飞行与强袭形态"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变形</span></button>
-          <button id="tactical-button" type="button" aria-label="释放战术技能"><i data-lucide="crosshair" aria-hidden="true"></i><span>战术</span></button>
+          <button id="wingman-button" type="button" aria-label="召唤僚机"><i data-lucide="bot" aria-hidden="true"></i><span>僚机</span></button>
         </div>
 
         <div id="boss-hud" class="boss-hud" hidden>
@@ -247,20 +286,58 @@
 
         <div class="exit-hint"><kbd>Q</kbd><span>退出</span></div>
         <div id="wave-message" class="wave-message" aria-hidden="true">第 01 波</div>
+        <section id="mission-briefing" class="mission-event" aria-labelledby="mission-event-title" hidden>
+          <div class="mission-event__tag"><span id="mission-event-tag">副本来袭</span><em>战斗已暂停</em></div>
+          <h2 id="mission-event-title">云端过山车</h2>
+          <p id="mission-event-rule">跟随发光轨道完成高速俯冲。</p>
+          <dl>
+            <div><dt>成功条件</dt><dd id="mission-event-objective">完成目标</dd></div>
+            <div><dt>完成奖励</dt><dd id="mission-event-reward">获得战斗强化</dd></div>
+          </dl>
+          <div class="mission-event__actions">
+            <button id="mission-enter" type="button">进入副本</button>
+            <button id="mission-skip" type="button">本局跳过</button>
+          </div>
+        </section>
+        <section id="airdrop-choice" class="mission-event airdrop-choice" aria-labelledby="airdrop-choice-title" hidden>
+          <div class="mission-event__tag"><span id="airdrop-choice-tag">战术空投</span><em>战斗已暂停</em></div>
+          <h2 id="airdrop-choice-title">选择补给</h2>
+          <p id="airdrop-choice-rule">立即领取一项普通奖励，或者先护送补给箱 6 秒升级奖励。</p>
+          <div class="airdrop-choice__grid">
+            <button id="airdrop-defense" class="airdrop-choice__option airdrop-choice__option--defense" type="button">
+              <span>生存补给</span>
+              <strong id="airdrop-defense-title">修复 35% 耐久</strong>
+              <small id="airdrop-defense-detail">护盾增加 1 层</small>
+            </button>
+            <button id="airdrop-firepower" class="airdrop-choice__option airdrop-choice__option--firepower" type="button">
+              <span>火力超载</span>
+              <strong id="airdrop-firepower-title">弹道等级 +1</strong>
+              <small id="airdrop-firepower-detail">射速与弹量强化 20 秒</small>
+            </button>
+          </div>
+          <button id="airdrop-escort" class="airdrop-choice__escort" type="button">
+            <strong>暂不领取，护送 6 秒</strong>
+            <span id="airdrop-escort-detail">留在补给范围内；敌机将集中攻击补给箱</span>
+          </button>
+        </section>
+        <div id="mission-progress" class="mission-progress" aria-live="polite" hidden>
+          <div><span id="mission-progress-tag">副本进行中</span><strong id="mission-progress-title">云端过山车</strong></div>
+          <p id="mission-progress-rule">跟随发光航线</p>
+          <div class="mission-progress__bottom"><i><b id="mission-progress-bar"></b></i><em id="mission-progress-value">10.0 秒</em></div>
+        </div>
+        <div id="airdrop-progress" class="airdrop-progress" aria-live="polite" hidden>
+          <div class="airdrop-progress__header"><span>战术空投护送</span><strong id="airdrop-progress-status">留在护送范围内</strong></div>
+          <div class="airdrop-progress__row"><i><b id="airdrop-progress-bar"></b></i><em id="airdrop-progress-value">0.0 / 6.0 秒</em></div>
+          <div class="airdrop-progress__row airdrop-progress__row--health"><i><b id="airdrop-integrity-bar"></b></i><em id="airdrop-integrity-value">补给完整度 100%</em></div>
+        </div>
+        <div id="transform-ready" class="transform-ready" role="status" hidden>
+          <span>3 个能量球已集齐</span>
+          <strong>按鼠标右键变身</strong>
+        </div>
         <div id="upgrade-message" class="upgrade-message" aria-hidden="true">
           <span>武器升级</span>
           <strong>LV.2 三叉脉冲</strong>
         </div>
-
-        <section id="module-choice" class="module-choice" aria-labelledby="module-title" hidden>
-          <p class="eyebrow">首领战利品</p>
-          <h2 id="module-title">选择强化模块</h2>
-          <div class="module-choice__grid">
-            <button type="button" data-module-slot="0"><span>01</span><strong>多重锁定</strong><small>追踪弹数量与处决伤害提升</small></button>
-            <button type="button" data-module-slot="1"><span>02</span><strong>相位隐匿</strong><small>降低变形耗能并延长保护</small></button>
-            <button type="button" data-module-slot="2"><span>03</span><strong>处决核心</strong><small>强化武器和标记伤害</small></button>
-          </div>
-        </section>
 
         <div id="game-over" class="game-over" hidden>
           <p class="eyebrow">任务结算</p>

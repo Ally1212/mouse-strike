@@ -61,3 +61,14 @@ SOFTWARE.
 The sound presets used by Mouse Strike are original parameter sets created for
 this project. They do not contain audio samples, melodies, or recordings from
 Nintendo, Konami, Contra, or other commercial games.
+
+## On The Offensive
+
+The battle loop uses the track `8-bit Theme - On The Offensive`.
+
+- Author: Ted Kerr (OpenGameArt user Wolfgang_)
+- Source: https://opengameart.org/content/8-bit-theme-on-the-offensive
+- License: CC0 1.0 Universal
+- License text: https://creativecommons.org/publicdomain/zero/1.0/
+
+The distributed file is `public/audio/on-the-offensive.ogg`.
