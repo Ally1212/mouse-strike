@@ -2698,6 +2698,57 @@ kbd {
   }
 }
 
+/* AI custom fighter designer */
+.fighter-option--ai {
+  border-color: color-mix(in srgb, #8d78ff 62%, var(--console-blue));
+  background: linear-gradient(135deg, rgba(112, 91, 255, 0.22), rgba(0, 184, 255, 0.12));
+}
+
+.fighter-option--ai b {
+  color: #b8aaff;
+}
+
+.custom-fighter-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.custom-fighter-dialog form {
+  display: grid;
+  gap: 15px;
+}
+
+.custom-fighter-dialog label {
+  display: grid;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.custom-fighter-dialog input,
+.custom-fighter-dialog textarea {
+  width: 100%;
+  border: 1px solid rgba(126, 190, 255, 0.38);
+  border-radius: 4px;
+  padding: 11px 12px;
+  color: #ffffff;
+  background: rgba(3, 14, 31, 0.76);
+  font: inherit;
+  resize: vertical;
+}
+
+.custom-fighter-dialog input:focus,
+.custom-fighter-dialog textarea:focus {
+  outline: 2px solid rgba(121, 203, 255, 0.72);
+  outline-offset: 2px;
+}
+
+.custom-fighter-result {
+  min-height: 20px;
+  margin: 0;
+  color: #9bdfff;
+  font-size: 13px;
+}
+
 /* High-visibility hangar theme. Combat keeps the dark battlefield palette. */
 body:not(.game-active) {
   color: #17231f;

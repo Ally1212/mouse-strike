@@ -30,8 +30,12 @@ import {
 } from "./battle-maps.js";
 import {
   FIGHTERS,
+  getCustomFighter,
   getFighterProfile,
+  hasCustomFighter,
+  setCustomFighter,
 } from "./fighter-profiles.js";
+import { CUSTOM_FIGHTER_ID, generateCustomFighter, isCustomFighter } from "./custom-fighter.js";
 import {
   AIRDROP_ESCORT_DURATION,
   airdropRewardSpec,
@@ -80,6 +84,13 @@ import {
   const unlockClose = document.querySelector("#unlock-close");
   const unlockPassword = document.querySelector("#unlock-password");
   const unlockError = document.querySelector("#unlock-error");
+  const customFighterDialog = document.querySelector("#custom-fighter-dialog");
+  const customFighterForm = document.querySelector("#custom-fighter-form");
+  const customFighterClose = document.querySelector("#custom-fighter-close");
+  const customFighterName = document.querySelector("#custom-fighter-name");
+  const customFighterBrief = document.querySelector("#custom-fighter-brief");
+  const customFighterResult = document.querySelector("#custom-fighter-result");
+  const customFighterOptionName = document.querySelector("#custom-fighter-option-name");
   const mapSelect = document.querySelector("#map-select");
   const mapSelectShell = mapSelect.closest(".map-select");
   const mapSelectTrigger = document.querySelector("#map-select-trigger");
@@ -256,7 +267,7 @@ import {
   function loadSelectedFighterId() {
     try {
       const saved = window.localStorage.getItem("mouse-strike-fighter");
-      return FIGHTERS[saved] ? saved : "j20";
+      return FIGHTERS[saved] || (saved === CUSTOM_FIGHTER_ID && hasCustomFighter()) ? saved : "j20";
     } catch {
       return "j20";
     }
@@ -270,6 +281,8 @@ import {
       return "usa";
     }
   }
+
+  loadCustomFighter();
 
   const state = {
     running: false,
@@ -391,6 +404,31 @@ import {
 
   function getFighter() {
     return getFighterProfile(state.fighterId);
+  }
+
+  function loadCustomFighter() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("mouse-strike-ai-fighter") || "null");
+      if (isCustomFighter(saved)) setCustomFighter(saved);
+    } catch {
+      // Invalid saved designs are ignored and a new one can be generated.
+    }
+  }
+
+  function syncCustomFighterOption() {
+    const custom = getCustomFighter();
+    customFighterOptionName.textContent = custom ? custom.displayName : "自定义原型机";
+  }
+
+  function openCustomFighterDialog() {
+    const custom = getCustomFighter();
+    customFighterName.value = custom?.displayName || "";
+    customFighterBrief.value = custom?.strength?.match(/“(.+)”/)?.[1] || "";
+    customFighterResult.textContent = custom
+      ? `当前装配：${custom.tactical.name} · ${custom.toolModes.map((mode) => mode.name).join(" / ")}`
+      : "关键词会影响技能类型：激光、重炮、蜂群、速度。";
+    customFighterDialog.showModal();
+    requestAnimationFrame(() => customFighterName.focus());
   }
 
   function getTransformStage(level = state.weaponLevel) {
@@ -544,7 +582,7 @@ import {
   }
 
   function selectFighter(fighterId, persist = true) {
-    if (!FIGHTERS[fighterId]) return;
+    if (!FIGHTERS[fighterId] && !(fighterId === CUSTOM_FIGHTER_ID && hasCustomFighter())) return;
     state.fighterId = fighterId;
     const fighter = getFighter();
     document.documentElement.style.setProperty("--fighter-accent", fighter.accent);
@@ -555,7 +593,7 @@ import {
     selectedRole.textContent = fighter.role;
     selectedName.textContent = fighter.displayName || fighter.name;
     selectedTransformName.textContent = fighter.transformation.label;
-    selectedTransformDuration.textContent = `${TRANSFORM_CORE_COST} 核心启动 / ${TRANSFORM_DURATION} 秒${fighter.id === "hypersonic" ? " · 四阶段" : ""}`;
+    selectedTransformDuration.textContent = `${TRANSFORM_CORE_COST} 核心启动 / ${TRANSFORM_DURATION} 秒${fighter.id === "hypersonic" ? " · 四阶段" : fighter.id === CUSTOM_FIGHTER_ID ? " · AI 生成" : ""}`;
     selectedTransformSummary.textContent = fighter.transformation.summary;
     selectedTacticalName.textContent = fighter.tactical.name;
     selectedSpecial.textContent = fighter.special;
@@ -615,12 +653,17 @@ import {
 
   function initializeHangar() {
     updateHypersonicLockState();
+    syncCustomFighterOption();
     selectMap(state.mapId, false);
     fighterOptions.forEach((option) => {
-      const fighter = FIGHTERS[option.dataset.fighter];
-      drawFighterThumbnail(option, fighter);
+      const fighter = option.dataset.fighter === CUSTOM_FIGHTER_ID ? getCustomFighter() : FIGHTERS[option.dataset.fighter];
+      if (fighter) drawFighterThumbnail(option, fighter);
       option.addEventListener("click", async () => {
         await audio?.unlock();
+        if (option.dataset.fighter === CUSTOM_FIGHTER_ID) {
+          openCustomFighterDialog();
+          return;
+        }
         selectFighter(option.dataset.fighter);
         audio?.fighterSelect(option.dataset.fighter);
       });
@@ -818,6 +861,18 @@ import {
     state.railChainTimer = 0;
     state.overclockTimer = 0;
     state.heavyRangeMultiplier = 1;
+    if (fighter.id === CUSTOM_FIGHTER_ID && fighter.passiveConfig) {
+      const passive = fighter.passiveConfig;
+      state.passivePower = passive.power || 0;
+      state.pierceBonus = passive.pierce || 0;
+      state.droneBonus = passive.drones || 0;
+      state.tacticalProjectileBonus = passive.tacticalProjectiles || 0;
+      state.transformGuardBonus = passive.guard || 0;
+      state.heavyRangeMultiplier = passive.heavyRange || 1;
+      state.waveRangeMultiplier = passive.waveRange || 1;
+      state.damageMultiplier = passive.damageMultiplier || 1;
+      state.fireRateMultiplier = passive.fireRate || 1;
+    }
     state.nextEnemyId = 1;
     state.bossKills = 0;
     state.skillUses = 0;
@@ -5528,6 +5583,13 @@ import {
       addCore: () => collectPowerCore(),
       collectPickup: (type) => collectPickup(type),
       selectFighter: (fighterId) => selectFighter(fighterId),
+      generateCustomFighter: (name, brief) => {
+        const generated = generateCustomFighter({ name, brief });
+        setCustomFighter(generated);
+        syncCustomFighterOption();
+        selectFighter(CUSTOM_FIGHTER_ID, false);
+        return generated;
+      },
       spawnBoss: () => {
         if (!state.enemies.some((enemy) => enemy.type === "boss")) spawnBoss();
       },
@@ -5820,6 +5882,51 @@ import {
     await audio?.unlock();
     audio?.fighterSelect?.("hypersonic");
     if (shouldLaunch) await startGame({ conceptVerified: true });
+  });
+  customFighterClose.addEventListener("click", () => customFighterDialog.close());
+  customFighterDialog.addEventListener("click", (event) => {
+    if (event.target === customFighterDialog) customFighterDialog.close();
+  });
+  customFighterForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = customFighterForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    customFighterResult.textContent = "DeepSeek 正在设计机体与技能…";
+    let design;
+    try {
+      const response = await fetch("/api/ai/fighter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: customFighterName.value, brief: customFighterBrief.value }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "DeepSeek 生成失败");
+      design = payload.design;
+    } catch (error) {
+      customFighterResult.textContent = `${error.message || "DeepSeek 生成失败"}，请检查网络或密钥后重试。`;
+      submitButton.disabled = false;
+      return;
+    }
+    const generated = generateCustomFighter({
+      name: customFighterName.value,
+      brief: customFighterBrief.value,
+      design,
+    });
+    setCustomFighter(generated);
+    try {
+      window.localStorage.setItem("mouse-strike-ai-fighter", JSON.stringify(generated));
+    } catch {
+      // The generated fighter remains available until this page is closed.
+    }
+    syncCustomFighterOption();
+    const customOption = fighterOptions.find((option) => option.dataset.fighter === CUSTOM_FIGHTER_ID);
+    if (customOption) drawFighterThumbnail(customOption, generated);
+    customFighterResult.textContent = `已生成：${generated.tactical.name} · ${generated.toolModes.map((mode) => mode.name).join(" / ")}`;
+    customFighterDialog.close();
+    selectFighter(CUSTOM_FIGHTER_ID);
+    submitButton.disabled = false;
+    await audio?.unlock();
+    audio?.fighterSelect?.(CUSTOM_FIGHTER_ID);
   });
   window.addEventListener("resize", () => {
     if (!gameScreen.hidden) resizeCanvas();

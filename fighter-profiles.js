@@ -1,4 +1,21 @@
+import { CUSTOM_FIGHTER_ID, isCustomFighter } from "./custom-fighter.js";
+
 export const FIGHTER_ORDER = ["j20", "j35", "faxx", "f22", "typhoon", "rafale", "gripen", "su57", "hypersonic"];
+
+let customFighter = null;
+
+export function setCustomFighter(profile) {
+  customFighter = isCustomFighter(profile) ? profile : null;
+  return customFighter;
+}
+
+export function getCustomFighter() {
+  return customFighter;
+}
+
+export function hasCustomFighter() {
+  return Boolean(customFighter);
+}
 
 const sharedShape = {
   canard: 6,
@@ -597,6 +614,7 @@ export const WINGMAN_SPECS = {
 };
 
 export function getFighterProfile(fighterId) {
+  if (fighterId === CUSTOM_FIGHTER_ID && customFighter) return customFighter;
   return FIGHTERS[fighterId] || FIGHTERS.f22;
 }
 
@@ -605,5 +623,6 @@ export function getToolModes(fighterId) {
 }
 
 export function getWingmanSpec(fighterId) {
+  if (fighterId === CUSTOM_FIGHTER_ID && customFighter?.wingman) return customFighter.wingman;
   return WINGMAN_SPECS[fighterId] || WINGMAN_SPECS.f22;
 }

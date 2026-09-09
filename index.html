@@ -86,6 +86,9 @@
                 <span><b>概念</b><strong>超音速 X-10</strong></span>
                 <em class="fighter-lock"><i data-lucide="key-round" aria-hidden="true"></i><span>概念暗号</span></em>
               </button>
+              <button id="custom-fighter-option" class="fighter-option fighter-option--ai" type="button" data-fighter="ai-custom" aria-pressed="false">
+                <span><b>AI 工坊</b><strong id="custom-fighter-option-name">自定义原型机</strong></span>
+              </button>
             </nav>
 
             <div class="hangar-stage">
@@ -204,6 +207,19 @@
             <label><span>概念暗号</span><input id="unlock-password" type="password" inputmode="numeric" autocomplete="off" minlength="4" maxlength="4" pattern="[0-9]{4}" aria-describedby="unlock-password-hint" required /><small id="unlock-password-hint">输入 4 位概念暗号</small></label>
             <p id="unlock-error" class="unlock-error" role="alert" hidden>暗号不正确，请重新输入。</p>
             <button class="start-button start-button--small" type="submit"><i data-lucide="key-round" aria-hidden="true"></i><span>验证暗号并驾驶</span></button>
+          </form>
+        </dialog>
+        <dialog id="custom-fighter-dialog" class="mission-brief custom-fighter-dialog" aria-labelledby="custom-fighter-title">
+          <form id="custom-fighter-form">
+            <div class="mission-brief__header">
+              <div><p class="eyebrow">AI 作战设计器</p><h2 id="custom-fighter-title">生成你的战机</h2></div>
+              <button id="custom-fighter-close" class="icon-button" type="button" aria-label="关闭自定义战机窗口"><i data-lucide="x" aria-hidden="true"></i></button>
+            </div>
+            <p>输入战机名称和作战偏好。AI 会生成三种攻击形态、必杀、被动、僚机编队与平衡属性，可立即投入战斗。</p>
+            <label><span>战机名称</span><input id="custom-fighter-name" maxlength="24" autocomplete="off" placeholder="例如：苍穹游隼" required /></label>
+            <label><span>作战偏好</span><textarea id="custom-fighter-brief" maxlength="140" rows="3" placeholder="例如：高速蜂群导弹战机，擅长追踪精英目标" required></textarea></label>
+            <p id="custom-fighter-result" class="custom-fighter-result" aria-live="polite">关键词会影响技能类型：激光、重炮、蜂群、速度。</p>
+            <button class="start-button start-button--small" type="submit"><i data-lucide="bot" aria-hidden="true"></i><span>AI 生成并装配</span></button>
           </form>
         </dialog>
       </section>

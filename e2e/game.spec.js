@@ -71,7 +71,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await page.locator('[data-fighter="hypersonic"]').click();
   await expect(page.locator("#selected-name")).toHaveText("超音速 X-10");
   await expect(page.locator("#unlock-dialog")).toBeHidden();
-  await expect(page.locator(".fighter-option").last()).toHaveAttribute("data-fighter", "hypersonic");
+  await expect(page.locator('[data-fighter="hypersonic"]')).toHaveAttribute("data-fighter", "hypersonic");
 
   const fighterExpectations = [
     ["hypersonic", "超音速 X-10", "heroMantle", "faxx"],
@@ -246,6 +246,48 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await page.screenshot({ path: `/tmp/mouse-strike-${testInfo.project.name}.png`, fullPage: true });
   await page.keyboard.press("q");
   await expect(page.locator("#menu-screen")).toBeVisible();
+});
+
+test("AI-designed fighter is generated, persisted in the hangar and enters combat", async ({ page }) => {
+  await page.route("**/api/ai/fighter", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        design: {
+          archetype: "swarm",
+          callsign: "云隼领航",
+          role: "蜂群制空 / 自动追猎",
+          passiveName: "自律火控",
+          passive: "增加无人机与战术弹幕数量。",
+          tacticalName: "蜂群围猎",
+          special: "蜂群围猎：清除近身敌弹。",
+          modeNames: ["蜂群追踪弹", "协同无人翼", "指挥脉冲"],
+          wingmanName: "自律蜂群队",
+          transformName: "苍穹游隼 强袭形态",
+          transformSummary: "机体展开蜂群指挥模块，进入强袭状态。",
+        },
+      }),
+    });
+  });
+  await page.goto("/?qa=1&renderer=canvas");
+  await page.locator('[data-fighter="ai-custom"]').click();
+  await expect(page.locator("#custom-fighter-dialog")).toBeVisible();
+  await page.locator("#custom-fighter-name").fill("苍穹游隼");
+  await page.locator("#custom-fighter-brief").fill("高速蜂群导弹战机，擅长追踪精英目标");
+  await page.locator("#custom-fighter-form").evaluate((form) => form.requestSubmit());
+
+  await expect(page.locator("#custom-fighter-dialog")).toBeHidden();
+  await expect(page.locator("#selected-name")).toHaveText("苍穹游隼");
+  await expect(page.locator("#selected-tactical-name")).toHaveText("蜂群围猎");
+  await expect(page.locator('[data-fighter="ai-custom"]')).toContainText("苍穹游隼");
+  await page.locator("#start-button").click();
+
+  await expect.poll(async () => (await snapshot(page)).running).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).fighterId).toBe("ai-custom");
+  await expect.poll(async () => (await snapshot(page)).bulletTypes.seeker || 0).toBeGreaterThan(0);
+  expect((await snapshot(page)).passivePower).toBeGreaterThan(0);
+  await page.keyboard.press("e");
+  await expect.poll(async () => (await snapshot(page)).tacticalCooldown).toBeGreaterThan(0);
 });
 
 test("map structures, meteors, airdrops and full-screen laser are playable", async ({ page }) => {
