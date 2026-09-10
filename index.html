@@ -37,6 +37,10 @@
             </div>
           </div>
           <div class="topbar-actions">
+            <button id="multiplayer-button" class="utility-button" type="button">
+              <i data-lucide="users" aria-hidden="true"></i>
+              <span class="rules-button__copy"><small>两人联机</small><b>好友对战</b></span>
+            </button>
             <button id="rules-button" class="utility-button utility-button--rules" type="button">
               <i data-lucide="book-open" aria-hidden="true"></i>
               <span class="rules-button__copy"><small>30 秒上手</small><b>玩法</b></span>
@@ -222,6 +226,46 @@
             <button class="start-button start-button--small" type="submit"><i data-lucide="bot" aria-hidden="true"></i><span>AI 生成并装配</span></button>
           </form>
         </dialog>
+        <dialog id="multiplayer-dialog" class="mission-brief multiplayer-dialog" aria-labelledby="multiplayer-title">
+          <div class="mission-brief__header">
+            <div><p class="eyebrow">两人实时作战</p><h2 id="multiplayer-title">好友联机</h2></div>
+            <button id="multiplayer-close" class="icon-button" type="button" aria-label="关闭好友联机"><i data-lucide="x" aria-hidden="true"></i></button>
+          </div>
+          <p id="multiplayer-status" class="multiplayer-status" aria-live="polite">创建房间与朋友一起出击，或输入房间码加入。</p>
+          <form id="multiplayer-room-form" class="multiplayer-form">
+            <label><span>飞行员昵称</span><input id="multiplayer-nickname" maxlength="16" autocomplete="nickname" placeholder="例如：王牌小队长" required /></label>
+            <div class="mode-picker" role="group" aria-label="联机模式">
+              <button type="button" class="is-selected" data-multiplayer-mode="coop" aria-pressed="true"><b>合作远征</b><small>两机并肩 · 救援 · 合击</small></button>
+              <button type="button" data-multiplayer-mode="duel" aria-pressed="false"><b>1v1 规则工坊</b><small>对称空战 · 多回合</small></button>
+            </div>
+            <label><span>使用战机</span><select id="multiplayer-fighter" aria-label="联机使用战机"></select></label>
+            <section id="duel-workshop" class="duel-workshop" hidden aria-label="1v1 规则工坊">
+              <p>房主可定义本局规则；每次修改后双方需要重新准备。</p>
+              <div class="workshop-grid">
+                <label><span>竞技场</span><select id="duel-map"><option value="usa">美国领空</option><option value="pacific">太平洋风暴线</option><option value="arctic">北极光走廊</option><option value="sky-corridor">天穹回廊</option><option value="meteor-rift">陨星禁区</option></select></label>
+                <label><span>胜利回合</span><select id="duel-rounds"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></label>
+                <label><span>回合时长</span><select id="duel-seconds"><option value="60">60 秒</option><option value="90" selected>90 秒</option><option value="120">120 秒</option></select></label>
+                <label><span>机体耐久</span><select id="duel-health"><option value="75">75%</option><option value="100" selected>100%</option><option value="125">125%</option></select></label>
+                <label><span>统一武器</span><select id="duel-loadout"><option value="standard">标准</option><option value="laser">激光</option><option value="rail">轨束</option><option value="swarm">蜂群</option><option value="heavy">重炮</option></select></label>
+                <label><span>补给</span><select id="duel-pickups"><option value="off">关闭</option><option value="basic" selected>基础</option><option value="chaos">狂欢</option></select></label>
+                <label><span>技能冷却</span><select id="duel-cooldown"><option value="6">6 秒</option><option value="10" selected>10 秒</option><option value="14">14 秒</option></select></label>
+                <label><span>胜利条件</span><select id="duel-victory"><option value="elimination">击毁</option><option value="score">得分</option></select></label>
+              </div>
+              <label class="switch-field"><input id="duel-transform" type="checkbox" checked /><span>允许核心变身</span></label>
+            </section>
+            <div class="multiplayer-actions">
+              <button id="multiplayer-create" class="start-button start-button--small" type="submit">创建房间</button>
+              <label class="join-field"><input id="multiplayer-room-code" maxlength="5" autocomplete="off" placeholder="房间码" /><button id="multiplayer-join" class="secondary-button" type="button">加入</button></label>
+            </div>
+          </form>
+          <section id="multiplayer-lobby" class="multiplayer-lobby" hidden aria-live="polite">
+            <div class="lobby-code"><span>房间码</span><strong id="multiplayer-room-value">-----</strong><button id="multiplayer-copy" class="secondary-button" type="button">复制</button></div>
+            <p id="multiplayer-mode-value">合作远征</p>
+            <div id="multiplayer-player-list" class="multiplayer-player-list"></div>
+            <p id="multiplayer-config-summary" class="multiplayer-config-summary"></p>
+            <div class="multiplayer-actions"><button id="multiplayer-ready" class="start-button start-button--small" type="button">准备出击</button><button id="multiplayer-leave" class="secondary-button" type="button">离开房间</button></div>
+          </section>
+        </dialog>
       </section>
 
       <section id="game-screen" class="game-screen" aria-label="游戏战场" hidden>
@@ -246,6 +290,11 @@
             <div class="health-track" aria-hidden="true"><span id="health-progress"></span></div>
             <span id="shield-value" class="shield-value">护盾 0</span>
           </div>
+        </div>
+        <div id="multiplayer-hud" class="multiplayer-hud" hidden aria-live="polite">
+          <div><span id="multiplayer-mode-hud">合作远征</span><strong id="multiplayer-round-hud">远征中</strong></div>
+          <div><span id="multiplayer-friend-hud">队友等待中</span><i><b id="multiplayer-friend-health"></b></i></div>
+          <div><span>同步合击</span><i><b id="multiplayer-link-progress"></b></i><em id="multiplayer-link-label">0%</em></div>
         </div>
 
         <div class="weapon-hud" aria-live="polite">

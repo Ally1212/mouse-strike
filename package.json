@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "start": "node server.mjs",
+    "server": "node server.mjs",
+    "dev:multiplayer": "node server.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "lucide": "^1.27.0",
-    "three": "0.185.1"
+    "three": "0.185.1",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0",

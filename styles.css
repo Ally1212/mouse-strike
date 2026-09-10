@@ -2698,6 +2698,129 @@ kbd {
   }
 }
 
+/* Two-player lobby and in-battle team readouts. */
+.multiplayer-dialog {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.multiplayer-status {
+  min-height: 22px;
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.multiplayer-status.is-error { color: #ff8f84; }
+
+.multiplayer-form,
+.duel-workshop,
+.multiplayer-lobby {
+  display: grid;
+  gap: 14px;
+}
+
+.multiplayer-form label,
+.duel-workshop label {
+  display: grid;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.multiplayer-form input,
+.multiplayer-form select,
+.duel-workshop select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  color: #10222b;
+  background: #fffdf6;
+  font: inherit;
+}
+
+.mode-picker,
+.multiplayer-actions,
+.lobby-code,
+.multiplayer-player,
+.multiplayer-hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mode-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.mode-picker button {
+  min-height: 68px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.045);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mode-picker button.is-selected { border-color: var(--acid); background: rgba(216, 255, 69, 0.13); }
+.mode-picker b, .mode-picker small { display: block; }
+.mode-picker small { margin-top: 5px; color: rgba(255, 255, 255, 0.58); }
+
+.duel-workshop {
+  padding: 14px;
+  border: 1px solid rgba(216, 255, 69, 0.3);
+  background: rgba(216, 255, 69, 0.06);
+}
+
+.duel-workshop > p, .multiplayer-config-summary { margin: 0; color: rgba(255, 255, 255, 0.68); font-size: 12px; line-height: 1.45; }
+.workshop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.switch-field { display: flex !important; grid-template-columns: auto 1fr; align-items: center; }
+.switch-field input { width: auto; min-height: 0; }
+
+.multiplayer-actions { justify-content: space-between; }
+.join-field { display: flex !important; grid-template-columns: minmax(0, 110px) auto; align-items: end; gap: 6px; }
+.join-field input { text-transform: uppercase; }
+.lobby-code { padding: 12px; background: rgba(255, 255, 255, 0.07); }
+.lobby-code strong { margin-right: auto; color: var(--acid); font: 800 22px monospace; letter-spacing: .12em; }
+.multiplayer-player-list { display: grid; gap: 8px; }
+.multiplayer-player { padding: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.multiplayer-player span { color: rgba(255, 255, 255, 0.65); }
+.multiplayer-player em { margin-left: auto; color: var(--acid); font-size: 11px; font-style: normal; }
+
+.multiplayer-hud {
+  position: absolute;
+  z-index: 4;
+  top: 18px;
+  left: 50%;
+  width: min(430px, calc(100% - 180px));
+  transform: translateX(-50%);
+  justify-content: center;
+  padding: 9px 12px;
+  border: 1px solid rgba(16, 34, 43, 0.22);
+  color: #10222b;
+  background: rgba(255, 253, 246, 0.88);
+  box-shadow: 4px 4px 0 rgba(16, 34, 43, 0.14);
+  font-size: 11px;
+}
+
+.multiplayer-hud > div { display: grid; gap: 3px; min-width: 0; }
+.multiplayer-hud span { white-space: nowrap; }
+.multiplayer-hud strong { font-size: 12px; }
+.multiplayer-hud i { display: block; width: 86px; height: 5px; overflow: hidden; background: rgba(16, 34, 43, .16); }
+.multiplayer-hud i b { display: block; height: 100%; width: 100%; background: var(--fighter-accent); }
+.multiplayer-hud em { font-style: normal; }
+
+@media (max-width: 640px) {
+  .topbar-actions { gap: 6px; }
+  #multiplayer-button .rules-button__copy small { display: none; }
+  #multiplayer-button { min-width: 78px; padding: 0 10px; }
+  .workshop-grid, .mode-picker { grid-template-columns: 1fr; }
+  .multiplayer-actions { align-items: stretch; flex-direction: column; }
+  .join-field { grid-template-columns: 1fr auto; }
+  .multiplayer-hud { top: 76px; width: calc(100% - 24px); gap: 7px; justify-content: space-between; }
+  .multiplayer-hud i { width: 68px; }
+}
+
 /* AI custom fighter designer */
 .fighter-option--ai {
   border-color: color-mix(in srgb, #8d78ff 62%, var(--console-blue));

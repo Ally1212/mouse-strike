@@ -13,6 +13,7 @@ import {
   Plane,
   Play,
   RefreshCw,
+  Users,
   Volume2,
   VolumeX,
   X,
@@ -36,6 +37,7 @@ import {
   setCustomFighter,
 } from "./fighter-profiles.js";
 import { CUSTOM_FIGHTER_ID, generateCustomFighter, isCustomFighter } from "./custom-fighter.js";
+import { MultiplayerClient } from "./multiplayer-client.js";
 import {
   AIRDROP_ESCORT_DURATION,
   airdropRewardSpec,
@@ -91,6 +93,42 @@ import {
   const customFighterBrief = document.querySelector("#custom-fighter-brief");
   const customFighterResult = document.querySelector("#custom-fighter-result");
   const customFighterOptionName = document.querySelector("#custom-fighter-option-name");
+  const multiplayerButton = document.querySelector("#multiplayer-button");
+  const multiplayerDialog = document.querySelector("#multiplayer-dialog");
+  const multiplayerClose = document.querySelector("#multiplayer-close");
+  const multiplayerStatus = document.querySelector("#multiplayer-status");
+  const multiplayerRoomForm = document.querySelector("#multiplayer-room-form");
+  const multiplayerNickname = document.querySelector("#multiplayer-nickname");
+  const multiplayerFighter = document.querySelector("#multiplayer-fighter");
+  const multiplayerModeButtons = [...document.querySelectorAll("[data-multiplayer-mode]")];
+  const duelWorkshop = document.querySelector("#duel-workshop");
+  const multiplayerCreate = document.querySelector("#multiplayer-create");
+  const multiplayerJoin = document.querySelector("#multiplayer-join");
+  const multiplayerRoomCode = document.querySelector("#multiplayer-room-code");
+  const multiplayerLobby = document.querySelector("#multiplayer-lobby");
+  const multiplayerRoomValue = document.querySelector("#multiplayer-room-value");
+  const multiplayerModeValue = document.querySelector("#multiplayer-mode-value");
+  const multiplayerPlayerList = document.querySelector("#multiplayer-player-list");
+  const multiplayerConfigSummary = document.querySelector("#multiplayer-config-summary");
+  const multiplayerReady = document.querySelector("#multiplayer-ready");
+  const multiplayerLeave = document.querySelector("#multiplayer-leave");
+  const multiplayerCopy = document.querySelector("#multiplayer-copy");
+  const multiplayerHud = document.querySelector("#multiplayer-hud");
+  const multiplayerModeHud = document.querySelector("#multiplayer-mode-hud");
+  const multiplayerRoundHud = document.querySelector("#multiplayer-round-hud");
+  const multiplayerFriendHud = document.querySelector("#multiplayer-friend-hud");
+  const multiplayerFriendHealth = document.querySelector("#multiplayer-friend-health");
+  const multiplayerLinkProgress = document.querySelector("#multiplayer-link-progress");
+  const multiplayerLinkLabel = document.querySelector("#multiplayer-link-label");
+  const duelMap = document.querySelector("#duel-map");
+  const duelRounds = document.querySelector("#duel-rounds");
+  const duelSeconds = document.querySelector("#duel-seconds");
+  const duelHealth = document.querySelector("#duel-health");
+  const duelLoadout = document.querySelector("#duel-loadout");
+  const duelPickups = document.querySelector("#duel-pickups");
+  const duelCooldown = document.querySelector("#duel-cooldown");
+  const duelVictory = document.querySelector("#duel-victory");
+  const duelTransform = document.querySelector("#duel-transform");
   const mapSelect = document.querySelector("#map-select");
   const mapSelectShell = mapSelect.closest(".map-select");
   const mapSelectTrigger = document.querySelector("#map-select-trigger");
@@ -401,6 +439,204 @@ import {
     stars: [],
     hazards: [],
   };
+
+  const online = {
+    active: false,
+    mode: "coop",
+    snapshot: null,
+    room: null,
+    selectedMode: "coop",
+    ready: false,
+    lastStatus: "",
+  };
+
+  const multiplayer = new MultiplayerClient({
+    onLobby: (room) => renderMultiplayerLobby(room),
+    onMatchStart: (room) => startOnlineMatch(room),
+    onSnapshot: (snapshot) => { online.snapshot = snapshot; updateOnlineHud(); },
+    onRoundEnd: ({ reason, round }) => showWave(`${reason} // 下一回合 ${round + 1}`),
+    onMatchEnd: ({ winnerId }) => finishOnlineMatch(winnerId),
+    onError: (message) => setMultiplayerStatus(message, true),
+    onStatus: (message) => setMultiplayerStatus(message),
+  });
+
+  function getDuelConfig() {
+    return {
+      mapId: duelMap.value,
+      roundsToWin: Number(duelRounds.value),
+      roundSeconds: Number(duelSeconds.value),
+      healthPercent: Number(duelHealth.value),
+      loadout: duelLoadout.value,
+      pickups: duelPickups.value,
+      transform: duelTransform.checked,
+      skillCooldown: Number(duelCooldown.value),
+      victory: duelVictory.value,
+    };
+  }
+
+  function setMultiplayerStatus(message, error = false) {
+    online.lastStatus = message;
+    multiplayerStatus.textContent = message;
+    multiplayerStatus.classList.toggle("is-error", error);
+  }
+
+  function populateMultiplayerFighters() {
+    const mode = online.selectedMode;
+    const selected = multiplayerFighter.value || state.fighterId;
+    multiplayerFighter.replaceChildren();
+    Object.values(FIGHTERS).forEach((fighter) => {
+      if (mode === "duel" && fighter.id === "hypersonic") return;
+      const option = document.createElement("option");
+      option.value = fighter.id;
+      option.textContent = fighter.displayName;
+      multiplayerFighter.append(option);
+    });
+    if (mode === "coop" && hasCustomFighter()) {
+      const custom = getCustomFighter();
+      const option = document.createElement("option");
+      option.value = CUSTOM_FIGHTER_ID;
+      option.textContent = custom.displayName;
+      multiplayerFighter.append(option);
+    }
+    multiplayerFighter.value = [...multiplayerFighter.options].some((option) => option.value === selected) ? selected : "j20";
+  }
+
+  function setMultiplayerMode(mode) {
+    online.selectedMode = mode === "duel" ? "duel" : "coop";
+    duelWorkshop.hidden = online.selectedMode !== "duel";
+    multiplayerModeButtons.forEach((button) => {
+      const selected = button.dataset.multiplayerMode === online.selectedMode;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    populateMultiplayerFighters();
+  }
+
+  function configSummary(config) {
+    if (online.room?.mode !== "duel") return "合作远征：双人各自成长、倒地救援与同步合击。";
+    return `${config.roundsToWin} 胜 · ${config.roundSeconds} 秒 · 耐久 ${config.healthPercent}% · ${config.loadout}武器 · ${config.pickups}补给`;
+  }
+
+  function renderMultiplayerLobby(room) {
+    online.room = room;
+    online.mode = room.mode;
+    multiplayerRoomForm.hidden = true;
+    multiplayerLobby.hidden = false;
+    multiplayerRoomValue.textContent = room.roomCode;
+    multiplayerModeValue.textContent = room.mode === "duel" ? "1v1 规则工坊" : "合作远征";
+    multiplayerConfigSummary.textContent = configSummary(room.config);
+    const isHost = room.hostId === multiplayer.playerId;
+    multiplayerPlayerList.replaceChildren(...room.players.map((player) => {
+      const item = document.createElement("div");
+      item.className = "multiplayer-player";
+      item.innerHTML = `<strong>${player.nickname}</strong><span>${(FIGHTERS[player.fighterId] || getCustomFighter())?.shortName || player.fighterId}</span><em>${player.ready ? "已准备" : "选择中"}</em>`;
+      return item;
+    }));
+    multiplayerReady.textContent = online.ready ? "取消准备" : "准备出击";
+    multiplayerReady.disabled = room.players.length < 2;
+    const fields = duelWorkshop.querySelectorAll("select, input");
+    fields.forEach((field) => { field.disabled = room.mode !== "duel" || !isHost; });
+    setMultiplayerStatus(room.players.length < 2 ? "等待朋友输入房间码加入" : "双方选择战机后准备出击");
+  }
+
+  async function openMultiplayerDialog() {
+    multiplayerRoomForm.hidden = false;
+    multiplayerLobby.hidden = true;
+    online.ready = false;
+    setMultiplayerMode(online.selectedMode);
+    multiplayerNickname.value = window.localStorage.getItem("mouse-strike-nickname") || "";
+    multiplayerDialog.showModal();
+    multiplayerNickname.focus();
+  }
+
+  async function connectMultiplayer() {
+    multiplayerCreate.disabled = true;
+    multiplayerJoin.disabled = true;
+    setMultiplayerStatus("正在连接联机服务…");
+    try {
+      await multiplayer.connect();
+      try { window.localStorage.setItem("mouse-strike-nickname", multiplayerNickname.value.trim()); } catch { /* Current session still works. */ }
+      return true;
+    } catch (error) {
+      setMultiplayerStatus(error.message, true);
+      return false;
+    } finally {
+      multiplayerCreate.disabled = false;
+      multiplayerJoin.disabled = false;
+    }
+  }
+
+  async function createMultiplayerRoom() {
+    if (!multiplayerNickname.value.trim()) { multiplayerNickname.focus(); return; }
+    if (!await connectMultiplayer()) return;
+    multiplayer.createRoom({ nickname: multiplayerNickname.value, fighterId: multiplayerFighter.value, mode: online.selectedMode, config: getDuelConfig() });
+  }
+
+  async function joinMultiplayerRoom() {
+    if (!multiplayerNickname.value.trim()) { multiplayerNickname.focus(); return; }
+    if (!multiplayerRoomCode.value.trim()) { multiplayerRoomCode.focus(); return; }
+    if (!await connectMultiplayer()) return;
+    multiplayer.joinRoom({ nickname: multiplayerNickname.value, fighterId: multiplayerFighter.value, roomCode: multiplayerRoomCode.value.toUpperCase() });
+  }
+
+  function updateOnlineHud() {
+    const snapshot = online.snapshot;
+    if (!online.active || !snapshot) return;
+    const mine = snapshot.players.find((player) => player.id === multiplayer.playerId);
+    const friend = snapshot.players.find((player) => player.id !== multiplayer.playerId);
+    if (mine?.sim) {
+      healthValue.textContent = `${Math.max(0, Math.ceil(mine.sim.health))} / ${mine.sim.maxHealth}`;
+      healthProgress.style.width = `${Math.max(0, mine.sim.health / mine.sim.maxHealth * 100)}%`;
+      weaponProgressLabel.textContent = `${mine.sim.cores} / 3 核心`;
+    }
+    multiplayerModeHud.textContent = snapshot.mode === "duel" ? "1V1 规则工坊" : "合作远征";
+    multiplayerRoundHud.textContent = snapshot.mode === "duel" ? `第 ${snapshot.world.round} 回合 · ${Math.ceil(snapshot.world.roundLeft)} 秒` : `团队重生 ${snapshot.world.respawns}`;
+    multiplayerFriendHud.textContent = friend ? `${friend.nickname} · ${friend.roundWins || 0} 胜` : "队友断线";
+    multiplayerFriendHealth.style.width = friend?.sim ? `${Math.max(0, friend.sim.health / friend.sim.maxHealth * 100)}%` : "0%";
+    multiplayerLinkProgress.style.width = `${snapshot.world.link || 0}%`;
+    multiplayerLinkLabel.textContent = `${Math.round(snapshot.world.link || 0)}%`;
+  }
+
+  function startOnlineMatch(room) {
+    online.active = true;
+    online.mode = room.mode;
+    online.snapshot = null;
+    multiplayerDialog.close();
+    menuScreen.hidden = true;
+    gameScreen.hidden = false;
+    multiplayerHud.hidden = false;
+    gameOverPanel.hidden = true;
+    document.body.style.overflow = "hidden";
+    document.body.classList.add("game-active");
+    resizeCanvas();
+    state.running = true;
+    state.ended = false;
+    state.previousTime = performance.now();
+    cancelAnimationFrame(state.animationFrame);
+    state.animationFrame = requestAnimationFrame(gameLoop);
+    showWave(room.mode === "duel" ? "对称空战 // 第 1 回合" : "合作远征 // 双机起飞");
+  }
+
+  function finishOnlineMatch(winnerId) {
+    if (!online.active) return;
+    const winner = online.snapshot?.players.find((player) => player.id === winnerId);
+    state.running = false;
+    state.ended = true;
+    online.active = false;
+    multiplayerHud.hidden = true;
+    finalScore.textContent = winner?.nickname ? `${winner.nickname} 获胜` : "任务结束";
+    finalWave.textContent = online.mode === "duel" ? "对局结束" : "远征结束";
+    finalWeapon.textContent = "联机战报";
+    finalFighter.textContent = "好友联机";
+    gameOverPanel.hidden = false;
+    audio?.gameOver?.();
+  }
+
+  function sendOnlineAction(action = "") {
+    if (!online.active) return false;
+    multiplayer.input(state.pointer.x / Math.max(1, state.width), state.pointer.y / Math.max(1, state.height), action);
+    return true;
+  }
 
   function getFighter() {
     return getFighterProfile(state.fighterId);
@@ -943,6 +1179,10 @@ import {
   }
 
   function restartGame() {
+    if (online.active || online.snapshot) {
+      exitGame();
+      return;
+    }
     audio?.stopAll();
     const audioUnlock = audio?.unlock();
     audioUnlock?.then((ready) => {
@@ -957,6 +1197,13 @@ import {
   }
 
   async function exitGame() {
+    if (online.active || online.snapshot) {
+      online.active = false;
+      online.snapshot = null;
+      online.room = null;
+      multiplayer.close(true);
+      multiplayerHud.hidden = true;
+    }
     state.running = false;
     state.missionPendingId = null;
     state.miniMission = null;
@@ -5446,16 +5693,114 @@ import {
     }
   }
 
+  function updateOnline() {
+    if (!online.snapshot) return;
+    multiplayer.input(state.pointer.x / Math.max(1, state.width), state.pointer.y / Math.max(1, state.height));
+    updateOnlineHud();
+  }
+
+  function drawOnlinePlane(player, x, y, scale) {
+    const fighter = player.fighterId === CUSTOM_FIGHTER_ID ? getCustomFighter() : FIGHTERS[player.fighterId] || FIGHTERS.f22;
+    const sim = player.sim || {};
+    context.save();
+    context.translate(x, y);
+    context.scale(scale, scale);
+    context.globalAlpha = sim.downedUntil > Date.now() ? 0.38 : 1;
+    context.fillStyle = fighter.accent;
+    context.strokeStyle = fighter.secondary;
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(0, -24);
+    context.lineTo(10, -2);
+    context.lineTo(31, 17);
+    context.lineTo(8, 13);
+    context.lineTo(0, 27);
+    context.lineTo(-8, 13);
+    context.lineTo(-31, 17);
+    context.lineTo(-10, -2);
+    context.closePath();
+    context.fill();
+    context.stroke();
+    if (sim.transformUntil > Date.now()) {
+      context.strokeStyle = "#fff3a6";
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(0, 2, 34, 0, Math.PI * 2);
+      context.stroke();
+    }
+    context.restore();
+    context.fillStyle = "#10222b";
+    context.font = "700 12px monospace";
+    context.textAlign = "center";
+    context.fillText(player.nickname, x, y + 47 * scale);
+    context.fillStyle = "rgba(255,255,255,.7)";
+    context.fillRect(x - 25 * scale, y - 39 * scale, 50 * scale, 4);
+    context.fillStyle = fighter.accent;
+    context.fillRect(x - 25 * scale, y - 39 * scale, 50 * scale * Math.max(0, sim.health || 0) / Math.max(1, sim.maxHealth || 1), 4);
+  }
+
+  function drawOnline() {
+    const snapshot = online.snapshot;
+    const map = getBattleMap(snapshot?.config?.mapId || "usa");
+    context.save();
+    context.fillStyle = map.background;
+    context.fillRect(0, 0, state.width, state.height);
+    context.strokeStyle = map.grid;
+    context.lineWidth = 1;
+    for (let x = 0; x < state.width; x += 48) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, state.height); context.stroke(); }
+    for (let y = 0; y < state.height; y += 48) { context.beginPath(); context.moveTo(0, y); context.lineTo(state.width, y); context.stroke(); }
+    if (!snapshot) {
+      context.fillStyle = "#10222b";
+      context.font = "700 17px sans-serif";
+      context.textAlign = "center";
+      context.fillText("正在同步战场…", state.width / 2, state.height / 2);
+      context.restore();
+      return;
+    }
+    const sx = state.width / snapshot.world.width;
+    const sy = state.height / snapshot.world.height;
+    context.fillStyle = map.accent;
+    context.globalAlpha = 0.08;
+    context.fillRect(0, 0, state.width, 84);
+    context.globalAlpha = 1;
+    snapshot.world.pickups.forEach((pickup) => {
+      context.fillStyle = pickup.type === "core" ? "#ea4f47" : "#55b976";
+      context.beginPath(); context.arc(pickup.x * sx, pickup.y * sy, 9, 0, Math.PI * 2); context.fill();
+    });
+    snapshot.world.enemies.forEach((enemy) => {
+      const x = enemy.x * sx; const y = enemy.y * sy;
+      context.fillStyle = enemy.elite ? "#7b2f6c" : "#b83d39";
+      context.beginPath(); context.moveTo(x, y + 18); context.lineTo(x - 18, y - 14); context.lineTo(x + 18, y - 14); context.closePath(); context.fill();
+      context.fillStyle = "rgba(16,34,43,.3)"; context.fillRect(x - 19, y - 23, 38, 3);
+      context.fillStyle = "#f5db95"; context.fillRect(x - 19, y - 23, 38 * enemy.hp / enemy.maxHp, 3);
+    });
+    snapshot.world.bullets.forEach((bullet) => {
+      const owner = snapshot.players.find((player) => player.id === bullet.ownerId);
+      const fighter = owner ? (FIGHTERS[owner.fighterId] || getCustomFighter() || FIGHTERS.f22) : FIGHTERS.f22;
+      context.fillStyle = fighter.accent;
+      context.beginPath(); context.arc(bullet.x * sx, bullet.y * sy, bullet.kind === "tactical" ? 7 : 3.5, 0, Math.PI * 2); context.fill();
+    });
+    snapshot.players.forEach((player) => drawOnlinePlane(player, player.sim.x * sx, player.sim.y * sy, Math.min(sx, sy)));
+    context.fillStyle = "#10222b";
+    context.font = "800 12px monospace";
+    context.textAlign = "left";
+    context.fillText(snapshot.world.event || (snapshot.mode === "duel" ? "对称竞技场" : "协作战区"), 20, 31);
+    context.restore();
+  }
+
   function gameLoop(time) {
     if (!state.running) return;
     const dt = Math.min(0.034, Math.max(0, (time - state.previousTime) / 1000));
     state.previousTime = time;
-    if (state.hitStop > 0) {
+    if (online.active) {
+      updateOnline(dt);
+      drawOnline();
+    } else if (state.hitStop > 0) {
       state.hitStop = Math.max(0, state.hitStop - dt);
     } else {
       update(dt);
     }
-    draw();
+    if (!online.active) draw();
 
     if (state.running) state.animationFrame = requestAnimationFrame(gameLoop);
   }
@@ -5937,22 +6282,72 @@ import {
       exitGame();
     } else if (event.code === "Space" && !gameScreen.hidden) {
       event.preventDefault();
-      summonWingmen();
+      if (!sendOnlineAction("wingman")) summonWingmen();
     } else if (event.key.toLowerCase() === "e" && !gameScreen.hidden) {
       event.preventDefault();
-      fireTactical();
+      if (!sendOnlineAction("tactical")) fireTactical();
     }
   });
   canvas.addEventListener("pointermove", (event) => setPointer(event.clientX, event.clientY));
   canvas.addEventListener("pointerdown", (event) => {
     setPointer(event.clientX, event.clientY);
-    if (event.pointerType === "mouse" && event.button === 0) cycleToolMode();
-    if (event.pointerType === "mouse" && event.button === 2) toggleTransform();
+    if (event.pointerType === "mouse" && event.button === 0) {
+      if (!sendOnlineAction("tool")) cycleToolMode();
+    }
+    if (event.pointerType === "mouse" && event.button === 2) {
+      if (!sendOnlineAction("transform")) toggleTransform();
+    }
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-  skillButton.addEventListener("click", cycleToolMode);
-  transformButton.addEventListener("click", toggleTransform);
-  wingmanButton.addEventListener("click", summonWingmen);
+  skillButton.addEventListener("click", () => { if (!sendOnlineAction("tool")) cycleToolMode(); });
+  transformButton.addEventListener("click", () => { if (!sendOnlineAction("transform")) toggleTransform(); });
+  wingmanButton.addEventListener("click", () => { if (!sendOnlineAction("wingman")) summonWingmen(); });
+
+  multiplayerButton.addEventListener("click", openMultiplayerDialog);
+  multiplayerClose.addEventListener("click", () => {
+    if (online.room) multiplayer.close(true);
+    online.room = null;
+    multiplayerDialog.close();
+  });
+  multiplayerDialog.addEventListener("click", (event) => {
+    if (event.target === multiplayerDialog) {
+      if (online.room) multiplayer.close(true);
+      online.room = null;
+      multiplayerDialog.close();
+    }
+  });
+  multiplayerModeButtons.forEach((button) => button.addEventListener("click", () => setMultiplayerMode(button.dataset.multiplayerMode)));
+  multiplayerRoomForm.addEventListener("submit", (event) => { event.preventDefault(); createMultiplayerRoom(); });
+  multiplayerJoin.addEventListener("click", joinMultiplayerRoom);
+  multiplayerFighter.addEventListener("change", () => {
+    if (online.room) multiplayer.selectFighter(multiplayerFighter.value);
+  });
+  multiplayerReady.addEventListener("click", () => {
+    online.ready = !online.ready;
+    multiplayer.ready(online.ready);
+    multiplayerReady.textContent = online.ready ? "取消准备" : "准备出击";
+  });
+  multiplayerLeave.addEventListener("click", () => {
+    multiplayer.close(true);
+    online.room = null;
+    online.ready = false;
+    multiplayerLobby.hidden = true;
+    multiplayerRoomForm.hidden = false;
+    setMultiplayerStatus("已离开房间");
+  });
+  multiplayerCopy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(multiplayerRoomValue.textContent);
+      setMultiplayerStatus("房间码已复制，发给朋友即可加入");
+    } catch {
+      setMultiplayerStatus(`房间码：${multiplayerRoomValue.textContent}`);
+    }
+  });
+  [duelMap, duelRounds, duelSeconds, duelHealth, duelLoadout, duelPickups, duelCooldown, duelVictory, duelTransform].forEach((field) => {
+    field.addEventListener("change", () => {
+      if (online.room?.hostId === multiplayer.playerId && online.room.mode === "duel") multiplayer.updateConfig(getDuelConfig());
+    });
+  });
 
   const forceCanvas = new URLSearchParams(window.location.search).get("renderer") === "canvas";
   visuals = forceCanvas
@@ -5977,6 +6372,7 @@ import {
       Plane,
       Play,
       RefreshCw,
+      Users,
       Volume2,
       VolumeX,
       X,
@@ -5988,6 +6384,7 @@ import {
     },
   });
   initializeHangar();
+  populateMultiplayerFighters();
   syncAudioControls();
   installQaControls();
 })();
