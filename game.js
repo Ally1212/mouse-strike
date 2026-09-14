@@ -494,7 +494,17 @@ import {
       online.previousSnapshot = online.snapshot;
       online.snapshot = snapshot;
       online.snapshotReceivedAt = receivedAt;
-      online.predicted = online.predicted || { x: 0.5, y: 0.75 };
+      const mine = snapshot.players.find((player) => player.id === multiplayer.playerId);
+      if (mine?.sim) {
+        const authoritative = { x: mine.sim.x / snapshot.world.width, y: mine.sim.y / snapshot.world.height };
+        if (!online.predicted) online.predicted = authoritative;
+        else {
+          const error = Math.hypot((online.predicted.x - authoritative.x) * snapshot.world.width, (online.predicted.y - authoritative.y) * snapshot.world.height);
+          const correction = error > 80 ? 1 : error > 18 ? 0.35 : 0.12;
+          online.predicted.x += (authoritative.x - online.predicted.x) * correction;
+          online.predicted.y += (authoritative.y - online.predicted.y) * correction;
+        }
+      }
       if (receivedAt - online.lastHudAt >= 100) { online.lastHudAt = receivedAt; updateOnlineHud(); }
     },
     onRoundEnd: ({ reason, round }) => showWave(`${reason} // 下一回合 ${round + 1}`),
