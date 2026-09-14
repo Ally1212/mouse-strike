@@ -35,3 +35,12 @@ test("duel workshop rejects the hero fighter and exposes configured rounds", asy
   await page.locator("#duel-rounds").selectOption("5");
   await expect(page.locator("#duel-rounds")).toHaveValue("5");
 });
+
+test("invite link pre-fills a room code and share action is available", async ({ page }) => {
+  await page.goto("/?renderer=canvas&room=ab2cd");
+  await page.locator("#multiplayer-button").click();
+  await expect(page.locator("#multiplayer-room-code")).toHaveValue("AB2CD");
+  await page.locator("#multiplayer-nickname").fill("邀请测试");
+  await page.locator("#multiplayer-create").click();
+  await expect(page.locator("#multiplayer-share")).toBeVisible();
+});

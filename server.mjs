@@ -24,6 +24,10 @@ function send(socket, type, payload = {}) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, ...payload }));
 }
 
+function fail(socket, code, message) {
+  send(socket, "error", { code, message });
+}
+
 function broadcast(room, type, payload = {}) {
   room.players.forEach((player) => send(player.socket, type, payload));
 }
@@ -342,7 +346,7 @@ function attachPlayer(room, socket, payload, host = false) {
   const player = {
     id: randomUUID(), socket, token: randomUUID(), nickname: normalizeNickname(payload.nickname),
     fighterId: FIGHTERS[payload.fighterId] ? payload.fighterId : "j20", ready: false, connected: true,
-    score: 0, roundWins: 0, input: { x: 0.5, y: 0.75, action: "" }, sim: null,
+    score: 0, roundWins: 0, lastInputSeq: 0, input: { x: 0.5, y: 0.75, action: "" }, sim: null,
   };
   room.players.push(player);
   if (host) room.hostId = player.id;
@@ -363,25 +367,26 @@ function detachPlayer(room, player) {
 }
 
 function handleMessage(socket, raw) {
+  if (String(raw).length > 16_384) return fail(socket, "MESSAGE_TOO_LARGE", "消息过大");
   let message;
-  try { message = JSON.parse(String(raw)); } catch { return send(socket, "error", { message: "消息格式无效" }); }
+  try { message = JSON.parse(String(raw)); } catch { return fail(socket, "INVALID_JSON", "消息格式无效"); }
   const payload = message.payload || {};
   if (message.type === "createRoom") {
-    if (socket.room) return send(socket, "error", { message: "已在房间中" });
+    if (socket.room) return fail(socket, "ALREADY_IN_ROOM", "已在房间中");
     const room = createRoom(payload.mode, payload.config);
     attachPlayer(room, socket, payload, true);
     return;
   }
   if (message.type === "joinRoom") {
     const room = rooms.get(String(payload.roomCode || "").toUpperCase());
-    if (!room || room.players.length >= MAX_PLAYERS || room.status === "playing") return send(socket, "error", { message: "房间不存在、已满或已开始" });
+    if (!room || room.players.length >= MAX_PLAYERS || room.status === "playing") return fail(socket, "ROOM_UNAVAILABLE", "房间不存在、已满或已开始");
     attachPlayer(room, socket, payload);
     return;
   }
   if (message.type === "reconnect") {
     const room = rooms.get(String(payload.roomCode || "").toUpperCase());
     const player = room?.players.find((item) => item.token === payload.token && !item.connected && Date.now() - item.disconnectedAt < 30_000);
-    if (!room || !player) return send(socket, "error", { message: "重连窗口已结束" });
+    if (!room || !player) return fail(socket, "RECONNECT_EXPIRED", "重连窗口已结束");
     player.socket = socket;
     player.connected = true;
     player.disconnectedAt = 0;
@@ -393,14 +398,14 @@ function handleMessage(socket, raw) {
   }
   const room = socket.room;
   const player = socket.player;
-  if (!room || !player) return send(socket, "error", { message: "请先进入房间" });
+  if (!room || !player) return fail(socket, "NOT_IN_ROOM", "请先进入房间");
   if (message.type === "selectFighter") {
     const fighterId = String(payload.fighterId || "");
-    if (!FIGHTERS[fighterId] || (room.mode === "duel" && !isDuelFighterAllowed(fighterId))) return send(socket, "error", { message: "该战机不可用于本模式" });
+    if (!FIGHTERS[fighterId] || (room.mode === "duel" && !isDuelFighterAllowed(fighterId))) return fail(socket, "FIGHTER_NOT_ALLOWED", "该战机不可用于本模式");
     player.fighterId = fighterId; player.ready = false; syncLobby(room); return;
   }
   if (message.type === "updateConfig") {
-    if (room.hostId !== player.id || room.status !== "lobby") return send(socket, "error", { message: "只有房主可修改规则" });
+    if (room.hostId !== player.id || room.status !== "lobby") return fail(socket, "CONFIG_FORBIDDEN", "只有房主可修改规则");
     room.config = normalizeMatchConfig(payload.config); room.players.forEach((item) => { item.ready = false; }); syncLobby(room); return;
   }
   if (message.type === "ready") {
@@ -410,7 +415,10 @@ function handleMessage(socket, raw) {
     if (room.players.length === MAX_PLAYERS && room.players.every((item) => item.ready)) startMatch(room);
     return;
   }
-  if (message.type === "input" && room.status === "playing") player.input = validInput(payload);
+  if (message.type === "input" && room.status === "playing") {
+    const seq = Number(payload.seq || 0);
+    if (seq >= player.lastInputSeq) { player.lastInputSeq = seq; player.input = validInput(payload); }
+  }
   if (message.type === "leave") detachPlayer(room, player);
 }
 
@@ -421,6 +429,7 @@ const httpServer = createServer((request, response) => {
 const wss = new WebSocketServer({ server: httpServer });
 wss.on("connection", (socket) => {
   socket.on("message", (message) => handleMessage(socket, message));
+  socket.on("pong", () => { socket.lastPongAt = Date.now(); });
   socket.on("close", () => {
     const { room, player } = socket;
     if (!room || !player) return;
@@ -431,8 +440,10 @@ wss.on("connection", (socket) => {
       if (!player.connected && room.players.includes(player) && Date.now() - player.disconnectedAt >= 30_000) detachPlayer(room, player);
     }, 30_100);
   });
-  send(socket, "hello", { tickRate: SERVER_TICK_RATE, snapshotRate: SNAPSHOT_RATE });
+  socket.lastPongAt = Date.now();
+  send(socket, "hello", { tickRate: SERVER_TICK_RATE, snapshotRate: SNAPSHOT_RATE, protocolVersion: 1 });
 });
 setInterval(tick, 1000 / SERVER_TICK_RATE);
 setInterval(() => { rooms.forEach((room) => { if (room.status === "playing") broadcast(room, "snapshot", { snapshot: snapshot(room) }); }); }, 1000 / SNAPSHOT_RATE);
+setInterval(() => { wss.clients.forEach((socket) => { if (socket.readyState !== WebSocket.OPEN) return; socket.ping(); }); }, 15_000);
 httpServer.listen(PORT, HOST, () => console.log(`Mouse Strike multiplayer server listening on ws://${HOST}:${PORT}`));

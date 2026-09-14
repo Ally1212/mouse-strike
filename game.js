@@ -113,6 +113,7 @@ import {
   const multiplayerReady = document.querySelector("#multiplayer-ready");
   const multiplayerLeave = document.querySelector("#multiplayer-leave");
   const multiplayerCopy = document.querySelector("#multiplayer-copy");
+  const multiplayerShare = document.querySelector("#multiplayer-share");
   const multiplayerHud = document.querySelector("#multiplayer-hud");
   const multiplayerModeHud = document.querySelector("#multiplayer-mode-hud");
   const multiplayerRoundHud = document.querySelector("#multiplayer-round-hud");
@@ -529,7 +530,8 @@ import {
     multiplayerPlayerList.replaceChildren(...room.players.map((player) => {
       const item = document.createElement("div");
       item.className = "multiplayer-player";
-      item.innerHTML = `<strong>${player.nickname}</strong><span>${(FIGHTERS[player.fighterId] || getCustomFighter())?.shortName || player.fighterId}</span><em>${player.ready ? "已准备" : "选择中"}</em>`;
+      const connection = player.connected ? "在线" : "断线·可重连";
+      item.innerHTML = `<strong>${player.nickname}</strong><span>${(FIGHTERS[player.fighterId] || getCustomFighter())?.shortName || player.fighterId}</span><em>${player.ready ? "已准备" : "选择中"} · ${connection}</em>`;
       return item;
     }));
     multiplayerReady.textContent = online.ready ? "取消准备" : "准备出击";
@@ -545,6 +547,8 @@ import {
     online.ready = false;
     setMultiplayerMode(online.selectedMode);
     multiplayerNickname.value = window.localStorage.getItem("mouse-strike-nickname") || "";
+    const inviteRoom = new URLSearchParams(window.location.search).get("room");
+    if (inviteRoom) multiplayerRoomCode.value = inviteRoom.toUpperCase().slice(0, 5);
     multiplayerDialog.showModal();
     multiplayerNickname.focus();
   }
@@ -6342,6 +6346,15 @@ import {
     } catch {
       setMultiplayerStatus(`房间码：${multiplayerRoomValue.textContent}`);
     }
+  });
+  multiplayerShare.addEventListener("click", async () => {
+    const code = multiplayerRoomValue.textContent.trim();
+    const invite = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(code)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "鼠标突击队好友联机", text: `加入我的联机房间：${code}`, url: invite });
+      else await navigator.clipboard.writeText(invite);
+      setMultiplayerStatus("邀请链接已复制，发给朋友即可加入");
+    } catch { setMultiplayerStatus(`房间码：${code}`); }
   });
   [duelMap, duelRounds, duelSeconds, duelHealth, duelLoadout, duelPickups, duelCooldown, duelVictory, duelTransform].forEach((field) => {
     field.addEventListener("change", () => {
