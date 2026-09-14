@@ -6,16 +6,11 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "start": "node server.mjs",
-    "server": "node server.mjs",
-    "dev:multiplayer": "node server.mjs",
+    "start": "vite --host 127.0.0.1",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@colyseus/schema": "^5.0.31",
-    "@colyseus/sdk": "^0.18.2",
-    "colyseus": "^0.18.5",
     "lucide": "^1.27.0",
     "three": "0.185.1"
   },

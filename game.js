@@ -12,7 +12,6 @@ import {
   Plane,
   Play,
   RefreshCw,
-  Users,
   Volume2,
   VolumeX,
   X,
@@ -36,8 +35,6 @@ import {
   setCustomFighter,
 } from "./fighter-profiles.js";
 import { CUSTOM_FIGHTER_ID, generateCustomFighter, isCustomFighter } from "./custom-fighter.js";
-import { MultiplayerClient } from "./multiplayer-client.js";
-import { PROFILE_KEY, applyMatchResult, createPilotProfile, dailyMissions, normalizePilotProfile } from "./pilot-profile.js";
 import {
   AIRDROP_ESCORT_DURATION,
   airdropRewardSpec,
@@ -93,47 +90,6 @@ import {
   const customFighterBrief = document.querySelector("#custom-fighter-brief");
   const customFighterResult = document.querySelector("#custom-fighter-result");
   const customFighterOptionName = document.querySelector("#custom-fighter-option-name");
-  const multiplayerButton = document.querySelector("#multiplayer-button");
-  const multiplayerDialog = document.querySelector("#multiplayer-dialog");
-  const multiplayerClose = document.querySelector("#multiplayer-close");
-  const multiplayerStatus = document.querySelector("#multiplayer-status");
-  const multiplayerOnboarding = document.querySelector("#multiplayer-onboarding");
-  const multiplayerOnboardingClose = document.querySelector("#multiplayer-onboarding-close");
-  const pilotCard = document.querySelector("#pilot-card");
-  const multiplayerRoomForm = document.querySelector("#multiplayer-room-form");
-  const multiplayerNickname = document.querySelector("#multiplayer-nickname");
-  const multiplayerFighter = document.querySelector("#multiplayer-fighter");
-  const multiplayerModeButtons = [...document.querySelectorAll("[data-multiplayer-mode]")];
-  const duelWorkshop = document.querySelector("#duel-workshop");
-  const multiplayerCreate = document.querySelector("#multiplayer-create");
-  const multiplayerJoin = document.querySelector("#multiplayer-join");
-  const multiplayerRoomCode = document.querySelector("#multiplayer-room-code");
-  const multiplayerLobby = document.querySelector("#multiplayer-lobby");
-  const multiplayerRoomValue = document.querySelector("#multiplayer-room-value");
-  const multiplayerRoomName = document.querySelector("#multiplayer-room-name");
-  const multiplayerModeValue = document.querySelector("#multiplayer-mode-value");
-  const multiplayerPlayerList = document.querySelector("#multiplayer-player-list");
-  const multiplayerConfigSummary = document.querySelector("#multiplayer-config-summary");
-  const multiplayerReady = document.querySelector("#multiplayer-ready");
-  const multiplayerLeave = document.querySelector("#multiplayer-leave");
-  const multiplayerCopy = document.querySelector("#multiplayer-copy");
-  const multiplayerShare = document.querySelector("#multiplayer-share");
-  const multiplayerHud = document.querySelector("#multiplayer-hud");
-  const multiplayerModeHud = document.querySelector("#multiplayer-mode-hud");
-  const multiplayerRoundHud = document.querySelector("#multiplayer-round-hud");
-  const multiplayerFriendHud = document.querySelector("#multiplayer-friend-hud");
-  const multiplayerFriendHealth = document.querySelector("#multiplayer-friend-health");
-  const multiplayerLinkProgress = document.querySelector("#multiplayer-link-progress");
-  const multiplayerLinkLabel = document.querySelector("#multiplayer-link-label");
-  const duelMap = document.querySelector("#duel-map");
-  const duelRounds = document.querySelector("#duel-rounds");
-  const duelSeconds = document.querySelector("#duel-seconds");
-  const duelHealth = document.querySelector("#duel-health");
-  const duelLoadout = document.querySelector("#duel-loadout");
-  const duelPickups = document.querySelector("#duel-pickups");
-  const duelCooldown = document.querySelector("#duel-cooldown");
-  const duelVictory = document.querySelector("#duel-victory");
-  const duelTransform = document.querySelector("#duel-transform");
   const mapSelect = document.querySelector("#map-select");
   const mapSelectShell = mapSelect.closest(".map-select");
   const mapSelectTrigger = document.querySelector("#map-select-trigger");
@@ -446,272 +402,6 @@ import {
     hazards: [],
   };
 
-  const online = {
-    active: false,
-    mode: "coop",
-    snapshot: null,
-    previousSnapshot: null,
-    snapshotReceivedAt: 0,
-    snapshotInterval: 1000 / 15,
-    lastSnapshotAt: 0,
-    predicted: null,
-    room: null,
-    selectedMode: "coop",
-    ready: false,
-    lastStatus: "",
-    debugFrames: 0,
-    debugStartedAt: performance.now(),
-    lastHudAt: 0,
-  };
-
-  const networkDebug = new URLSearchParams(window.location.search).get("debug") === "network" ? document.body.appendChild(document.createElement("output")) : null;
-  if (networkDebug) { networkDebug.className = "network-debug"; networkDebug.setAttribute("aria-label", "联机性能数据"); }
-
-  function loadPilotProfile() {
-    try { return normalizePilotProfile(JSON.parse(window.localStorage.getItem(PROFILE_KEY) || "null")); }
-    catch { return createPilotProfile(); }
-  }
-
-  let pilotProfile = loadPilotProfile();
-
-  function savePilotProfile() {
-    try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(pilotProfile)); } catch { /* Local profile is optional. */ }
-  }
-
-  function renderPilotCard() {
-    const missions = dailyMissions();
-    const missionText = missions.map((mission) => `${mission.label} ${Math.min(pilotProfile.daily?.[mission.stat] || 0, mission.target)}/${mission.target}`).join(" · ");
-    pilotCard.innerHTML = `<strong>${pilotProfile.nickname}</strong> · 联机 ${pilotProfile.matches} 局 · 胜 ${pilotProfile.wins} 局<br><span>今日任务：${missionText}</span>`;
-  }
-
-  const multiplayer = new MultiplayerClient({
-    onLobby: (room) => renderMultiplayerLobby(room),
-    onMatchStart: (room) => startOnlineMatch(room),
-    onSnapshot: (snapshot) => {
-      const receivedAt = performance.now();
-      if (online.lastSnapshotAt) online.snapshotInterval = online.snapshotInterval * 0.8 + (receivedAt - online.lastSnapshotAt) * 0.2;
-      online.lastSnapshotAt = receivedAt;
-      online.previousSnapshot = online.snapshot;
-      online.snapshot = snapshot;
-      online.snapshotReceivedAt = receivedAt;
-      const mine = snapshot.players.find((player) => player.id === multiplayer.playerId);
-      if (mine?.sim) {
-        const authoritative = { x: mine.sim.x / snapshot.world.width, y: mine.sim.y / snapshot.world.height };
-        if (!online.predicted) online.predicted = authoritative;
-        else {
-          const error = Math.hypot((online.predicted.x - authoritative.x) * snapshot.world.width, (online.predicted.y - authoritative.y) * snapshot.world.height);
-          const correction = error > 80 ? 1 : error > 18 ? 0.35 : 0.12;
-          online.predicted.x += (authoritative.x - online.predicted.x) * correction;
-          online.predicted.y += (authoritative.y - online.predicted.y) * correction;
-        }
-      }
-      if (receivedAt - online.lastHudAt >= 100) { online.lastHudAt = receivedAt; updateOnlineHud(); }
-    },
-    onRoundEnd: ({ reason, round }) => showWave(`${reason} // 下一回合 ${round + 1}`),
-    onMatchEnd: (result) => finishOnlineMatch(result),
-    onCountdown: ({ startsAt }) => setMultiplayerStatus(`${Math.max(1, Math.ceil((startsAt - Date.now()) / 1000))} 秒后出击…`),
-    onError: (message) => setMultiplayerStatus(message, true),
-    onStatus: (message) => setMultiplayerStatus(message),
-  });
-
-  function getDuelConfig() {
-    return {
-      mapId: duelMap.value,
-      roundsToWin: Number(duelRounds.value),
-      roundSeconds: Number(duelSeconds.value),
-      healthPercent: Number(duelHealth.value),
-      loadout: duelLoadout.value,
-      pickups: duelPickups.value,
-      transform: duelTransform.checked,
-      skillCooldown: Number(duelCooldown.value),
-      victory: duelVictory.value,
-    };
-  }
-
-  function setMultiplayerStatus(message, error = false) {
-    online.lastStatus = message;
-    multiplayerStatus.textContent = message;
-    multiplayerStatus.classList.toggle("is-error", error);
-  }
-
-  function populateMultiplayerFighters() {
-    const mode = online.selectedMode;
-    const selected = multiplayerFighter.value || state.fighterId;
-    multiplayerFighter.replaceChildren();
-    Object.values(FIGHTERS).forEach((fighter) => {
-      if (mode === "duel" && fighter.id === "hypersonic") return;
-      const option = document.createElement("option");
-      option.value = fighter.id;
-      option.textContent = fighter.displayName;
-      multiplayerFighter.append(option);
-    });
-    if (mode === "coop" && hasCustomFighter()) {
-      const custom = getCustomFighter();
-      const option = document.createElement("option");
-      option.value = CUSTOM_FIGHTER_ID;
-      option.textContent = custom.displayName;
-      multiplayerFighter.append(option);
-    }
-    multiplayerFighter.value = [...multiplayerFighter.options].some((option) => option.value === selected) ? selected : "j20";
-  }
-
-  function setMultiplayerMode(mode) {
-    online.selectedMode = mode === "duel" ? "duel" : "coop";
-    duelWorkshop.hidden = online.selectedMode !== "duel";
-    multiplayerModeButtons.forEach((button) => {
-      const selected = button.dataset.multiplayerMode === online.selectedMode;
-      button.classList.toggle("is-selected", selected);
-      button.setAttribute("aria-pressed", String(selected));
-    });
-    populateMultiplayerFighters();
-  }
-
-  function configSummary(config) {
-    if (online.room?.mode !== "duel") return "合作远征：双人各自成长、倒地救援与同步合击。";
-    return `${config.roundsToWin} 胜 · ${config.roundSeconds} 秒 · 耐久 ${config.healthPercent}% · ${config.loadout}武器 · ${config.pickups}补给`;
-  }
-
-  function renderMultiplayerLobby(room) {
-    online.room = room;
-    online.mode = room.mode;
-    multiplayerRoomForm.hidden = true;
-    multiplayerLobby.hidden = false;
-    multiplayerRoomName.textContent = room.roomName || "好友作战编队";
-    multiplayerRoomValue.textContent = room.roomCode;
-    multiplayerModeValue.textContent = room.mode === "duel" ? "1v1 规则工坊" : "合作远征";
-    multiplayerConfigSummary.textContent = configSummary(room.config);
-    const isHost = room.hostId === multiplayer.playerId;
-    online.ready = Boolean(room.players.find((player) => player.id === multiplayer.playerId)?.ready);
-    multiplayerPlayerList.replaceChildren(...room.players.map((player) => {
-      const item = document.createElement("div");
-      item.className = "multiplayer-player";
-      const connection = player.connected ? "在线" : "断线·可重连";
-      item.innerHTML = `<strong>${player.nickname}</strong><span>${(FIGHTERS[player.fighterId] || getCustomFighter())?.shortName || player.fighterId}</span><em>${player.ready ? "已准备" : "选择中"} · ${connection}</em>`;
-      return item;
-    }));
-    multiplayerReady.textContent = online.ready ? "取消准备" : "准备出击";
-    multiplayerReady.disabled = room.players.length < 2;
-    const fields = duelWorkshop.querySelectorAll("select, input");
-    fields.forEach((field) => { field.disabled = room.mode !== "duel" || !isHost; });
-    setMultiplayerStatus(room.players.length < 2 ? "等待朋友输入房间码加入" : "双方选择战机后准备出击");
-  }
-
-  async function openMultiplayerDialog() {
-    multiplayerRoomForm.hidden = false;
-    multiplayerLobby.hidden = true;
-    online.ready = false;
-    setMultiplayerMode(online.selectedMode);
-    multiplayerNickname.value = window.localStorage.getItem("mouse-strike-nickname") || "";
-    multiplayerOnboarding.hidden = window.localStorage.getItem("mouse-strike-online-onboarded") === "1";
-    renderPilotCard();
-    const inviteRoom = new URLSearchParams(window.location.search).get("room");
-    if (inviteRoom) multiplayerRoomCode.value = inviteRoom.toUpperCase().slice(0, 5);
-    multiplayerDialog.showModal();
-    multiplayerNickname.focus();
-  }
-
-  async function connectMultiplayer() {
-    multiplayerCreate.disabled = true;
-    multiplayerJoin.disabled = true;
-    setMultiplayerStatus("正在连接联机服务…");
-    try {
-      await multiplayer.connect();
-      try { window.localStorage.setItem("mouse-strike-nickname", multiplayerNickname.value.trim()); } catch { /* Current session still works. */ }
-      pilotProfile.nickname = multiplayerNickname.value.trim().slice(0, 16) || pilotProfile.nickname;
-      pilotProfile.favoriteFighter = multiplayerFighter.value;
-      savePilotProfile();
-      renderPilotCard();
-      return true;
-    } catch (error) {
-      setMultiplayerStatus(error.message, true);
-      return false;
-    } finally {
-      multiplayerCreate.disabled = false;
-      multiplayerJoin.disabled = false;
-    }
-  }
-
-  async function createMultiplayerRoom() {
-    if (!multiplayerNickname.value.trim()) { multiplayerNickname.focus(); return; }
-    if (!await connectMultiplayer()) return;
-    multiplayer.createRoom({ nickname: multiplayerNickname.value, fighterId: multiplayerFighter.value, mode: online.selectedMode, config: getDuelConfig() });
-  }
-
-  async function joinMultiplayerRoom() {
-    if (!multiplayerNickname.value.trim()) { multiplayerNickname.focus(); return; }
-    if (!multiplayerRoomCode.value.trim()) { multiplayerRoomCode.focus(); return; }
-    if (!await connectMultiplayer()) return;
-    multiplayer.joinRoom({ nickname: multiplayerNickname.value, fighterId: multiplayerFighter.value, roomCode: multiplayerRoomCode.value.toUpperCase() });
-  }
-
-  function updateOnlineHud() {
-    const snapshot = online.snapshot;
-    if (!online.active || !snapshot) return;
-    const mine = snapshot.players.find((player) => player.id === multiplayer.playerId);
-    const friend = snapshot.players.find((player) => player.id !== multiplayer.playerId);
-    if (mine?.sim) {
-      healthValue.textContent = `${Math.max(0, Math.ceil(mine.sim.health))} / ${mine.sim.maxHealth}`;
-      healthProgress.style.width = `${Math.max(0, mine.sim.health / mine.sim.maxHealth * 100)}%`;
-      weaponProgressLabel.textContent = `${mine.sim.cores} / 3 核心`;
-    }
-    multiplayerModeHud.textContent = snapshot.mode === "duel" ? "1V1 规则工坊" : "合作远征";
-    multiplayerRoundHud.textContent = snapshot.mode === "duel" ? `第 ${snapshot.world.round} 回合 · ${Math.ceil(snapshot.world.roundLeft)} 秒` : `团队重生 ${snapshot.world.respawns}`;
-    multiplayerFriendHud.textContent = friend ? `${friend.nickname} · ${friend.roundWins || 0} 胜` : "队友断线";
-    multiplayerFriendHealth.style.width = friend?.sim ? `${Math.max(0, friend.sim.health / friend.sim.maxHealth * 100)}%` : "0%";
-    multiplayerLinkProgress.style.width = `${snapshot.world.link || 0}%`;
-    multiplayerLinkLabel.textContent = `${Math.round(snapshot.world.link || 0)}%`;
-  }
-
-  function startOnlineMatch(room) {
-    online.active = true;
-    online.mode = room.mode;
-    online.snapshot = null;
-    online.previousSnapshot = null;
-    online.predicted = null;
-    multiplayerDialog.close();
-    menuScreen.hidden = true;
-    gameScreen.hidden = false;
-    multiplayerHud.hidden = false;
-    gameOverPanel.hidden = true;
-    document.body.style.overflow = "hidden";
-    document.body.classList.add("game-active");
-    resizeCanvas();
-    state.running = true;
-    state.ended = false;
-    state.previousTime = performance.now();
-    cancelAnimationFrame(state.animationFrame);
-    state.animationFrame = requestAnimationFrame(gameLoop);
-    showWave(room.mode === "duel" ? "对称空战 // 第 1 回合" : "合作远征 // 双机起飞");
-  }
-
-  function finishOnlineMatch({ winnerId, stats = [] }) {
-    if (!online.active) return;
-    const winner = online.snapshot?.players.find((player) => player.id === winnerId);
-    const mine = stats.find((player) => player.id === multiplayer.playerId) || online.snapshot?.players.find((player) => player.id === multiplayer.playerId) || {};
-    const result = applyMatchResult(pilotProfile, { won: winnerId === multiplayer.playerId, rescues: mine.rescues, syncStrikes: mine.syncStrikes, pickups: mine.pickups });
-    pilotProfile = result.profile;
-    savePilotProfile();
-    renderPilotCard();
-    state.running = false;
-    state.ended = true;
-    online.active = false;
-    multiplayerHud.hidden = true;
-    finalScore.textContent = winner?.nickname ? `${winner.nickname} 获胜` : "任务结束";
-    finalWave.textContent = online.mode === "duel" ? "对局结束" : "远征结束";
-    finalWeapon.textContent = "联机战报";
-    finalFighter.textContent = "好友联机";
-    finalMedals.textContent = result.earned.length ? `本局勋章：${result.earned.join(" · ")}` : "完成好友联机任务记录";
-    restartButton.textContent = "原规则再来一局";
-    gameOverPanel.hidden = false;
-    audio?.gameOver?.();
-  }
-
-  function sendOnlineAction(action = "") {
-    if (!online.active) return false;
-    multiplayer.input(state.pointer.x / Math.max(1, state.width), state.pointer.y / Math.max(1, state.height), action);
-    return true;
-  }
-
   function getFighter() {
     return getFighterProfile(state.fighterId);
   }
@@ -903,7 +593,7 @@ import {
     selectedRole.textContent = fighter.role;
     selectedName.textContent = fighter.displayName || fighter.name;
     selectedTransformName.textContent = fighter.transformation.label;
-    selectedTransformDuration.textContent = `${TRANSFORM_CORE_COST} 核心启动 / ${TRANSFORM_DURATION} 秒${fighter.id === "hypersonic" ? " · 四阶段" : fighter.id === CUSTOM_FIGHTER_ID ? " · AI 生成" : ""}`;
+    selectedTransformDuration.textContent = `${TRANSFORM_CORE_COST} 核心启动 / ${TRANSFORM_DURATION} 秒${fighter.id === "hypersonic" ? " · 四阶段" : fighter.id === CUSTOM_FIGHTER_ID ? " · 本地生成" : ""}`;
     selectedTransformSummary.textContent = fighter.transformation.summary;
     selectedTacticalName.textContent = fighter.tactical.name;
     selectedSpecial.textContent = fighter.special;
@@ -1253,20 +943,6 @@ import {
   }
 
   function restartGame() {
-    if (online.room && !online.active) {
-      gameOverPanel.hidden = true;
-      gameScreen.hidden = true;
-      menuScreen.hidden = false;
-      document.body.style.overflow = "";
-      document.body.classList.remove("game-active");
-      multiplayer.requestRematch();
-      multiplayerDialog.showModal();
-      return;
-    }
-    if (online.active || online.snapshot) {
-      exitGame();
-      return;
-    }
     audio?.stopAll();
     const audioUnlock = audio?.unlock();
     audioUnlock?.then((ready) => {
@@ -1281,13 +957,6 @@ import {
   }
 
   async function exitGame() {
-    if (online.active || online.snapshot || online.room) {
-      online.active = false;
-      online.snapshot = null;
-      online.room = null;
-      multiplayer.close(true);
-      multiplayerHud.hidden = true;
-    }
     state.running = false;
     state.missionPendingId = null;
     state.miniMission = null;
@@ -5779,147 +5448,16 @@ import {
     }
   }
 
-  function updateOnline() {
-    if (!online.snapshot) return;
-    const target = { x: state.pointer.x / Math.max(1, state.width), y: state.pointer.y / Math.max(1, state.height) };
-    const blend = 1 - Math.pow(0.0001, 1 / 60);
-    online.predicted = online.predicted || target;
-    online.predicted.x += (target.x - online.predicted.x) * blend;
-    online.predicted.y += (target.y - online.predicted.y) * blend;
-    multiplayer.input(target.x, target.y);
-  }
-
-  function interpolateOnlineItem(previous, current, alpha) {
-    if (!current) return previous;
-    if (!previous || previous.id !== current.id) return current;
-    return { ...current, x: previous.x + (current.x - previous.x) * alpha, y: previous.y + (current.y - previous.y) * alpha };
-  }
-
-  function drawOnlinePlane(player, x, y, scale) {
-    const fighter = player.fighterId === CUSTOM_FIGHTER_ID ? getCustomFighter() : FIGHTERS[player.fighterId] || FIGHTERS.f22;
-    const sim = player.sim || {};
-    context.save();
-    context.translate(x, y);
-    context.scale(scale, scale);
-    context.globalAlpha = sim.downedUntil > Date.now() ? 0.38 : 1;
-    context.fillStyle = fighter.accent;
-    context.strokeStyle = fighter.secondary;
-    context.lineWidth = 2;
-    context.beginPath();
-    context.moveTo(0, -24);
-    context.lineTo(10, -2);
-    context.lineTo(31, 17);
-    context.lineTo(8, 13);
-    context.lineTo(0, 27);
-    context.lineTo(-8, 13);
-    context.lineTo(-31, 17);
-    context.lineTo(-10, -2);
-    context.closePath();
-    context.fill();
-    context.stroke();
-    if (sim.transformUntil > Date.now()) {
-      context.strokeStyle = "#fff3a6";
-      context.lineWidth = 3;
-      context.beginPath();
-      context.arc(0, 2, 34, 0, Math.PI * 2);
-      context.stroke();
-    }
-    context.restore();
-    context.fillStyle = "#10222b";
-    context.font = "700 12px monospace";
-    context.textAlign = "center";
-    context.fillText(player.nickname, x, y + 47 * scale);
-    context.fillStyle = "rgba(255,255,255,.7)";
-    context.fillRect(x - 25 * scale, y - 39 * scale, 50 * scale, 4);
-    context.fillStyle = fighter.accent;
-    context.fillRect(x - 25 * scale, y - 39 * scale, 50 * scale * Math.max(0, sim.health || 0) / Math.max(1, sim.maxHealth || 1), 4);
-  }
-
-  function drawOnline() {
-    const snapshot = online.snapshot;
-    const map = getBattleMap(snapshot?.config?.mapId || "usa");
-    context.save();
-    context.fillStyle = map.background;
-    context.fillRect(0, 0, state.width, state.height);
-    context.strokeStyle = map.grid;
-    context.lineWidth = 1;
-    for (let x = 0; x < state.width; x += 48) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, state.height); context.stroke(); }
-    for (let y = 0; y < state.height; y += 48) { context.beginPath(); context.moveTo(0, y); context.lineTo(state.width, y); context.stroke(); }
-    if (!snapshot) {
-      context.fillStyle = "#10222b";
-      context.font = "700 17px sans-serif";
-      context.textAlign = "center";
-      context.fillText("正在同步战场…", state.width / 2, state.height / 2);
-      context.restore();
-      return;
-    }
-    const sx = state.width / snapshot.world.width;
-    const sy = state.height / snapshot.world.height;
-    const previous = online.previousSnapshot;
-    const alpha = Math.min(1, Math.max(0, (performance.now() - online.snapshotReceivedAt) / online.snapshotInterval));
-    const previousWorld = previous?.world;
-    const previousPickups = new globalThis.Map((previousWorld?.pickups || []).map((item) => [item.id, item]));
-    const previousEnemies = new globalThis.Map((previousWorld?.enemies || []).map((item) => [item.id, item]));
-    const previousBullets = new globalThis.Map((previousWorld?.bullets || []).map((item) => [item.id, item]));
-    const previousPlayers = new globalThis.Map((previous?.players || []).map((item) => [item.id, item]));
-    const currentPlayers = new globalThis.Map(snapshot.players.map((item) => [item.id, item]));
-    context.fillStyle = map.accent;
-    context.globalAlpha = 0.08;
-    context.fillRect(0, 0, state.width, 84);
-    context.globalAlpha = 1;
-    snapshot.world.pickups.map((pickup) => interpolateOnlineItem(previousPickups.get(pickup.id), pickup, alpha)).forEach((pickup) => {
-      context.fillStyle = pickup.type === "core" ? "#ea4f47" : "#55b976";
-      context.beginPath(); context.arc(pickup.x * sx, pickup.y * sy, 9, 0, Math.PI * 2); context.fill();
-    });
-    snapshot.world.enemies.map((enemy) => interpolateOnlineItem(previousEnemies.get(enemy.id), enemy, alpha)).forEach((enemy) => {
-      const x = enemy.x * sx; const y = enemy.y * sy;
-      context.fillStyle = enemy.elite ? "#7b2f6c" : "#b83d39";
-      context.beginPath(); context.moveTo(x, y + 18); context.lineTo(x - 18, y - 14); context.lineTo(x + 18, y - 14); context.closePath(); context.fill();
-      context.fillStyle = "rgba(16,34,43,.3)"; context.fillRect(x - 19, y - 23, 38, 3);
-      context.fillStyle = "#f5db95"; context.fillRect(x - 19, y - 23, 38 * enemy.hp / enemy.maxHp, 3);
-    });
-    snapshot.world.bullets.map((bullet) => interpolateOnlineItem(previousBullets.get(bullet.id), bullet, alpha)).forEach((bullet) => {
-      const owner = currentPlayers.get(bullet.ownerId);
-      const fighter = owner ? (FIGHTERS[owner.fighterId] || getCustomFighter() || FIGHTERS.f22) : FIGHTERS.f22;
-      context.fillStyle = fighter.accent;
-      context.beginPath(); context.arc(bullet.x * sx, bullet.y * sy, bullet.kind === "tactical" ? 7 : 3.5, 0, Math.PI * 2); context.fill();
-    });
-    snapshot.players.forEach((player) => {
-      const oldPlayer = previousPlayers.get(player.id);
-      const sim = interpolateOnlineItem(oldPlayer?.sim && { id: player.id, x: oldPlayer.sim.x, y: oldPlayer.sim.y }, player.sim && { id: player.id, x: player.sim.x, y: player.sim.y }, alpha);
-      const isMine = player.id === multiplayer.playerId;
-      const x = isMine && online.predicted ? online.predicted.x * state.width : sim.x * sx;
-      const y = isMine && online.predicted ? online.predicted.y * state.height : sim.y * sy;
-      drawOnlinePlane(player, x, y, Math.min(sx, sy));
-    });
-    context.fillStyle = "#10222b";
-    context.font = "800 12px monospace";
-    context.textAlign = "left";
-    context.fillText(snapshot.world.event || (snapshot.mode === "duel" ? "对称竞技场" : "协作战区"), 20, 31);
-    context.restore();
-  }
-
   function gameLoop(time) {
     if (!state.running) return;
     const dt = Math.min(0.034, Math.max(0, (time - state.previousTime) / 1000));
     state.previousTime = time;
-    if (online.active) {
-      online.debugFrames += 1;
-      if (networkDebug && time - online.debugStartedAt >= 1000) {
-        const world = online.snapshot?.world;
-        const fps = Math.round(online.debugFrames * 1000 / (time - online.debugStartedAt));
-        const entities = (world?.enemies?.length || 0) + (world?.bullets?.length || 0) + (world?.pickups?.length || 0);
-        networkDebug.textContent = `FPS ${fps} · PATCH ${Math.round(online.snapshotInterval)}ms · ENTITY ${entities}`;
-        online.debugFrames = 0; online.debugStartedAt = time;
-      }
-      updateOnline(dt);
-      drawOnline();
-    } else if (state.hitStop > 0) {
+    if (state.hitStop > 0) {
       state.hitStop = Math.max(0, state.hitStop - dt);
     } else {
       update(dt);
     }
-    if (!online.active) draw();
+    draw();
 
     if (state.running) state.animationFrame = requestAnimationFrame(gameLoop);
   }
@@ -6355,26 +5893,10 @@ import {
     event.preventDefault();
     const submitButton = customFighterForm.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    customFighterResult.textContent = "DeepSeek 正在设计机体与技能…";
-    let design;
-    try {
-      const response = await fetch("/api/ai/fighter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: customFighterName.value, brief: customFighterBrief.value }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "DeepSeek 生成失败");
-      design = payload.design;
-    } catch (error) {
-      customFighterResult.textContent = `${error.message || "DeepSeek 生成失败"}，请检查网络或密钥后重试。`;
-      submitButton.disabled = false;
-      return;
-    }
+    customFighterResult.textContent = "正在本地设计机体与技能…";
     const generated = generateCustomFighter({
       name: customFighterName.value,
       brief: customFighterBrief.value,
-      design,
     });
     setCustomFighter(generated);
     try {
@@ -6406,85 +5928,26 @@ import {
       exitGame();
     } else if (event.code === "Space" && !gameScreen.hidden) {
       event.preventDefault();
-      if (!sendOnlineAction("wingman")) summonWingmen();
+      summonWingmen();
     } else if (event.key.toLowerCase() === "e" && !gameScreen.hidden) {
       event.preventDefault();
-      if (!sendOnlineAction("tactical")) fireTactical();
+      fireTactical();
     }
   });
   canvas.addEventListener("pointermove", (event) => setPointer(event.clientX, event.clientY));
   canvas.addEventListener("pointerdown", (event) => {
     setPointer(event.clientX, event.clientY);
     if (event.pointerType === "mouse" && event.button === 0) {
-      if (!sendOnlineAction("tool")) cycleToolMode();
+      cycleToolMode();
     }
     if (event.pointerType === "mouse" && event.button === 2) {
-      if (!sendOnlineAction("transform")) toggleTransform();
+      toggleTransform();
     }
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-  skillButton.addEventListener("click", () => { if (!sendOnlineAction("tool")) cycleToolMode(); });
-  transformButton.addEventListener("click", () => { if (!sendOnlineAction("transform")) toggleTransform(); });
-  wingmanButton.addEventListener("click", () => { if (!sendOnlineAction("wingman")) summonWingmen(); });
-
-  multiplayerButton.addEventListener("click", openMultiplayerDialog);
-  multiplayerOnboardingClose.addEventListener("click", () => {
-    multiplayerOnboarding.hidden = true;
-    try { window.localStorage.setItem("mouse-strike-online-onboarded", "1"); } catch { /* Optional preference. */ }
-  });
-  multiplayerClose.addEventListener("click", () => {
-    if (online.room) multiplayer.close(true);
-    online.room = null;
-    multiplayerDialog.close();
-  });
-  multiplayerDialog.addEventListener("click", (event) => {
-    if (event.target === multiplayerDialog) {
-      if (online.room) multiplayer.close(true);
-      online.room = null;
-      multiplayerDialog.close();
-    }
-  });
-  multiplayerModeButtons.forEach((button) => button.addEventListener("click", () => setMultiplayerMode(button.dataset.multiplayerMode)));
-  multiplayerRoomForm.addEventListener("submit", (event) => { event.preventDefault(); createMultiplayerRoom(); });
-  multiplayerJoin.addEventListener("click", joinMultiplayerRoom);
-  multiplayerFighter.addEventListener("change", () => {
-    if (online.room) multiplayer.selectFighter(multiplayerFighter.value);
-  });
-  multiplayerReady.addEventListener("click", () => {
-    online.ready = !online.ready;
-    multiplayer.ready(online.ready);
-    multiplayerReady.textContent = online.ready ? "取消准备" : "准备出击";
-  });
-  multiplayerLeave.addEventListener("click", () => {
-    multiplayer.close(true);
-    online.room = null;
-    online.ready = false;
-    multiplayerLobby.hidden = true;
-    multiplayerRoomForm.hidden = false;
-    setMultiplayerStatus("已离开房间");
-  });
-  multiplayerCopy.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(multiplayerRoomValue.textContent);
-      setMultiplayerStatus("房间码已复制，发给朋友即可加入");
-    } catch {
-      setMultiplayerStatus(`房间码：${multiplayerRoomValue.textContent}`);
-    }
-  });
-  multiplayerShare.addEventListener("click", async () => {
-    const code = multiplayerRoomValue.textContent.trim();
-    const invite = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(code)}`;
-    try {
-      if (navigator.share) await navigator.share({ title: "鼠标突击队好友联机", text: `加入我的联机房间：${code}`, url: invite });
-      else await navigator.clipboard.writeText(invite);
-      setMultiplayerStatus("邀请链接已复制，发给朋友即可加入");
-    } catch { setMultiplayerStatus(`房间码：${code}`); }
-  });
-  [duelMap, duelRounds, duelSeconds, duelHealth, duelLoadout, duelPickups, duelCooldown, duelVictory, duelTransform].forEach((field) => {
-    field.addEventListener("change", () => {
-      if (online.room?.hostId === multiplayer.playerId && online.room.mode === "duel") multiplayer.updateConfig(getDuelConfig());
-    });
-  });
+  skillButton.addEventListener("click", cycleToolMode);
+  transformButton.addEventListener("click", toggleTransform);
+  wingmanButton.addEventListener("click", summonWingmen);
 
   const forceCanvas = new URLSearchParams(window.location.search).get("renderer") === "canvas";
   visuals = { available: false, setFighter() {}, setPreviewMode() {}, setToolMode() {}, resizeBattle() {}, renderBattle() {}, getRigSignature() { return ""; }, getHangarInteraction() { return null; }, getHangarPreview() { return null; }, dispose() {} };
@@ -6515,7 +5978,6 @@ import {
       Plane,
       Play,
       RefreshCw,
-      Users,
       Volume2,
       VolumeX,
       X,
@@ -6527,7 +5989,6 @@ import {
     },
   });
   initializeHangar();
-  populateMultiplayerFighters();
   syncAudioControls();
   installQaControls();
 })();

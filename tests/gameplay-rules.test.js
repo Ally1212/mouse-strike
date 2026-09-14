@@ -25,7 +25,6 @@ import {
   setCustomFighter,
 } from "../fighter-profiles.js";
 import { CUSTOM_FIGHTER_ID, generateCustomFighter } from "../custom-fighter.js";
-import { generateAiFighterDesign, sanitizeAiDesign } from "../ai-fighter-service.js";
 import {
   circleIntersectsStructure,
   createMapStructures,
@@ -129,19 +128,6 @@ describe("tactical airdrop rules", () => {
   });
 });
 describe("combat configuration", () => {
-  test("DeepSeek design responses are constrained before entering combat data", async () => {
-    const design = await generateAiFighterDesign({
-      name: "测试机",
-      brief: "激光战机",
-      apiKey: "test-key",
-      fetchImpl: async () => new Response(JSON.stringify({
-        choices: [{ message: { content: JSON.stringify({ archetype: "laser", modeNames: ["光矛", "脉冲", "轨束"], passiveName: "折光核心" }) } }],
-      }), { status: 200 }),
-    });
-    expect(design).toMatchObject({ archetype: "laser", modeNames: ["光矛", "脉冲", "轨束"], passiveName: "折光核心" });
-    expect(sanitizeAiDesign({ archetype: "untrusted", modeNames: Array(8).fill("x") }).archetype).toBe("");
-  });
-
   test("AI custom fighter generates balanced combat skills from player intent", () => {
     const fighter = generateCustomFighter({
       name: "苍穹游隼",

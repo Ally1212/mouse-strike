@@ -248,27 +248,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await expect(page.locator("#menu-screen")).toBeVisible();
 });
 
-test("AI-designed fighter is generated, persisted in the hangar and enters combat", async ({ page }) => {
-  await page.route("**/api/ai/fighter", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        design: {
-          archetype: "swarm",
-          callsign: "云隼领航",
-          role: "蜂群制空 / 自动追猎",
-          passiveName: "自律火控",
-          passive: "增加无人机与战术弹幕数量。",
-          tacticalName: "蜂群围猎",
-          special: "蜂群围猎：清除近身敌弹。",
-          modeNames: ["蜂群追踪弹", "协同无人翼", "指挥脉冲"],
-          wingmanName: "自律蜂群队",
-          transformName: "苍穹游隼 强袭形态",
-          transformSummary: "机体展开蜂群指挥模块，进入强袭状态。",
-        },
-      }),
-    });
-  });
+test("locally designed fighter is persisted in the hangar and enters combat", async ({ page }) => {
   await page.goto("/?qa=1&renderer=canvas");
   await page.locator('[data-fighter="ai-custom"]').click();
   await expect(page.locator("#custom-fighter-dialog")).toBeVisible();

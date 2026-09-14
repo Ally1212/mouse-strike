@@ -128,7 +128,7 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
   return {
     id: CUSTOM_FIGHTER_ID,
     index: "AI",
-    country: "AI 工坊",
+    country: "本地工坊",
     name: designation,
     shortName: designation,
     displayName: designation,
@@ -137,7 +137,7 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
     passiveName: aiText(design.passiveName, blueprint.passiveName, 20),
     passive: aiText(design.passive, blueprint.passive, 86),
     passiveConfig: blueprint.passiveConfig,
-    strength: `AI 根据“${concept}”生成的战术模块，已完成战斗平衡校验。`,
+    strength: `根据“${concept}”在本地生成的战术模块，已完成战斗平衡校验。`,
     tradeoff: "技能参数受战斗平衡限制；重新生成会替换当前原型机。",
     special: aiText(design.special, `${blueprint.tactical.name}：清除近身敌弹，并以生成的专属弹道压制目标区域。`, 110),
     transformation: {
@@ -148,7 +148,7 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
     accent: blueprint.accent,
     secondary: blueprint.secondary,
     ambient: blueprint.ambient,
-    reference: { src: "fighters/faxx.webp", alt: `${designation} 的程序化战机预览`, credit: "AI 作战设计器生成", url: "" },
+    reference: { src: "fighters/faxx.webp", alt: `${designation} 的程序化战机预览`, credit: "本地作战设计器生成", url: "" },
     stats: { mobility, firepower, armor, transform, tactical },
     agility: Math.round(mobility / 20),
     firepower: Math.round(firepower / 20),
