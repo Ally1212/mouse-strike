@@ -4,100 +4,75 @@ const defaultUrl = () => {
   return `${protocol}//${window.location.hostname || "127.0.0.1"}:8787`;
 };
 
+const values = (collection) => collection ? [...collection.values()] : [];
+const plainSim = (sim) => sim ? { x: sim.x, y: sim.y, targetX: sim.targetX, targetY: sim.targetY, health: sim.health, maxHealth: sim.maxHealth, cores: sim.cores, transformUntil: sim.transformUntil, tacticalUntil: sim.tacticalUntil, wingmanUntil: sim.wingmanUntil, downedUntil: sim.downedUntil, reviveProgress: sim.reviveProgress, invulnerableUntil: sim.invulnerableUntil } : null;
+const plainPlayers = (state) => values(state?.players).map((player) => ({ id: player.id, nickname: player.nickname, fighterId: player.fighterId, ready: player.ready, connected: player.connected, score: player.score, roundWins: player.roundWins, rescues: player.rescues, syncStrikes: player.syncStrikes, pickups: player.pickups, sim: plainSim(player.sim) }));
+
+function plainRoom(room) {
+  const state = room.state;
+  return { roomCode: room.roomId, mode: state.mode, hostId: state.hostSessionId, roomName: state.roomName, status: state.phase, config: JSON.parse(state.configJson || "{}"), players: plainPlayers(state) };
+}
+
+function plainSnapshot(room) {
+  const state = room.state;
+  return {
+    now: state.serverTime, mode: state.mode, status: state.phase, config: JSON.parse(state.configJson || "{}"),
+    world: { width: state.world.width, height: state.world.height, elapsed: state.world.elapsed, round: state.world.round, roundLeft: state.world.roundLeft, link: state.world.link, respawns: state.world.respawns, event: state.world.event, enemies: values(state.world.enemies).map((item) => ({ ...item })), bullets: values(state.world.bullets).map((item) => ({ ...item })), pickups: values(state.world.pickups).map((item) => ({ ...item })) },
+    players: plainPlayers(state),
+  };
+}
+
 export class MultiplayerClient {
-  constructor({ onLobby, onMatchStart, onSnapshot, onRoundEnd, onMatchEnd, onError, onStatus }) {
-    this.callbacks = { onLobby, onMatchStart, onSnapshot, onRoundEnd, onMatchEnd, onError, onStatus };
-    this.socket = null;
-    this.playerId = "";
-    this.room = null;
-    this.lastInputAt = 0;
-    this.inputSeq = 0;
-    this.reconnectTimer = null;
-    this.intentionalClose = false;
+  constructor(callbacks) {
+    this.callbacks = callbacks; this.client = null; this.roomConnection = null; this.playerId = ""; this.room = null;
+    this.lastInputAt = 0; this.inputSeq = 0; this.intentionalClose = false; this.reconnecting = false;
     try { this.session = JSON.parse(window.sessionStorage.getItem("mouse-strike-online-session") || "null"); } catch { this.session = null; }
   }
 
-  connect() {
-    if (this.socket?.readyState === WebSocket.OPEN) return Promise.resolve();
+  async connect() {
     this.intentionalClose = false;
-    return new Promise((resolve, reject) => {
-      const socket = new WebSocket(defaultUrl());
-      this.socket = socket;
-      const timeout = window.setTimeout(() => reject(new Error("联机服务未响应，请先运行 npm run server")), 4500);
-      socket.addEventListener("open", () => {
-        window.clearTimeout(timeout);
-        this.callbacks.onStatus?.("已连接本地联机服务");
-        if (this.session?.roomCode && this.session?.token) this.send("reconnect", this.session);
-        resolve();
-      }, { once: true });
-      socket.addEventListener("error", () => { window.clearTimeout(timeout); reject(new Error("无法连接联机服务，请先运行 npm run server")); }, { once: true });
-      socket.addEventListener("close", () => {
-        this.callbacks.onStatus?.(this.intentionalClose ? "已离开联机房间" : "连接已断开，正在尝试重连…");
-        if (!this.intentionalClose && this.session?.roomCode && this.session?.token) this.scheduleReconnect();
-      });
-      socket.addEventListener("message", (event) => this.receive(event));
-    });
-  }
-
-  receive(event) {
-    let message;
-    try { message = JSON.parse(event.data); } catch { return; }
-    if (message.type === "joined") {
-      this.playerId = message.playerId;
-      this.room = message.room;
-      this.session = { roomCode: message.room.roomCode, token: message.token };
-      try { window.sessionStorage.setItem("mouse-strike-online-session", JSON.stringify(this.session)); } catch { /* Reconnect remains available in this page. */ }
-      this.callbacks.onLobby?.(message.room);
-      return;
-    }
-    if (message.type === "lobby") { this.room = message.room; this.callbacks.onLobby?.(message.room); return; }
-    if (message.type === "matchStart") { this.room = message.room; this.callbacks.onMatchStart?.(message.room); return; }
-    if (message.type === "snapshot") { this.callbacks.onSnapshot?.(message.snapshot); return; }
-    if (message.type === "roundEnd") { this.callbacks.onRoundEnd?.(message); return; }
-    if (message.type === "matchEnd") { this.callbacks.onMatchEnd?.(message); return; }
-    if (message.type === "error") this.callbacks.onError?.(message.message || "联机服务错误");
-  }
-
-  send(type, payload = {}) {
-    if (this.socket?.readyState !== WebSocket.OPEN) return false;
-    this.socket.send(JSON.stringify({ type, payload }));
+    if (!this.client) { const { Client } = await import("@colyseus/sdk"); this.client = new Client(defaultUrl()); }
     return true;
   }
+  async createRoom(payload) { this.clearSession(); try { await this.connect(); this.attachRoom(await this.client.create("game", payload)); } catch (error) { this.reportError(error, "无法创建房间"); } }
+  async joinRoom(payload) { try { await this.connect(); this.attachRoom(await this.client.joinById(String(payload.roomCode || "").toUpperCase(), payload)); } catch (error) { this.reportError(error, "房间不存在、已满或已开始"); } }
 
-  scheduleReconnect() {
-    if (this.reconnectTimer || this.intentionalClose) return;
-    this.reconnectTimer = window.setTimeout(async () => {
-      this.reconnectTimer = null;
-      try { await this.connect(); }
-      catch { if (!this.intentionalClose) this.scheduleReconnect(); }
-    }, 1200);
+  attachRoom(room) {
+    this.roomConnection = room; this.playerId = room.sessionId;
+    this.session = { roomCode: room.roomId, reconnectionToken: room.reconnectionToken };
+    try { window.sessionStorage.setItem("mouse-strike-online-session", JSON.stringify(this.session)); } catch { /* Optional storage. */ }
+    room.onMessage("lobby", ({ room: lobby }) => { this.room = lobby; this.callbacks.onLobby?.(lobby); });
+    room.onMessage("countdown", (message) => this.callbacks.onCountdown?.(message));
+    room.onMessage("matchStart", ({ room: lobby }) => { this.room = lobby; this.callbacks.onMatchStart?.(lobby); });
+    room.onMessage("roundEnd", (message) => this.callbacks.onRoundEnd?.(message));
+    room.onMessage("matchEnd", (message) => this.callbacks.onMatchEnd?.(message));
+    room.onMessage("error", ({ message }) => this.callbacks.onError?.(message || "联机服务错误"));
+    room.onStateChange((state) => {
+      if (Number(state.protocolVersion) !== 2) return this.callbacks.onError?.("联机协议已更新，请刷新页面");
+      const lobby = plainRoom(room); this.room = lobby;
+      if (state.phase === "lobby") this.callbacks.onLobby?.(lobby);
+      if (state.phase === "playing") this.callbacks.onSnapshot?.(plainSnapshot(room));
+    });
+    room.onLeave(() => { this.callbacks.onStatus?.(this.intentionalClose ? "已离开联机房间" : "连接已断开，正在尝试重连…"); if (!this.intentionalClose) this.reconnect(); });
+    this.room = plainRoom(room); this.callbacks.onLobby?.(this.room); this.callbacks.onStatus?.("已连接联机服务");
   }
 
-  createRoom(payload) { this.clearSession(); return this.send("createRoom", payload); }
-  joinRoom(payload) { return this.send("joinRoom", payload); }
+  async reconnect() {
+    if (this.reconnecting || !this.session?.reconnectionToken) return;
+    this.reconnecting = true;
+    try { await new Promise((resolve) => window.setTimeout(resolve, 1000)); this.attachRoom(await this.client.reconnect(this.session.reconnectionToken)); this.callbacks.onStatus?.("已恢复联机对局"); }
+    catch { this.callbacks.onError?.("重连窗口已结束，请重新加入房间"); }
+    finally { this.reconnecting = false; }
+  }
+
+  reportError(error, fallback) { this.callbacks.onError?.(error?.message || fallback); }
+  send(type, payload = {}) { if (!this.roomConnection) return false; this.roomConnection.send(type, payload); return true; }
   selectFighter(fighterId) { return this.send("selectFighter", { fighterId }); }
   updateConfig(config) { return this.send("updateConfig", { config }); }
-  ready(ready) { return this.send("ready", { ready }); }
-
-  input(x, y, action = "") {
-    const now = performance.now();
-    if (!action && now - this.lastInputAt < 45) return;
-    this.lastInputAt = now;
-    this.send("input", { x, y, action, seq: ++this.inputSeq, clientTime: Date.now() });
-  }
-
-  leave() { this.send("leave"); this.clearSession(); }
-
-  clearSession() {
-    this.session = null;
-    try { window.sessionStorage.removeItem("mouse-strike-online-session"); } catch { /* Storage is optional. */ }
-  }
-
-  close(intentional = false) {
-    this.intentionalClose = intentional;
-    if (this.reconnectTimer) { window.clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
-    if (intentional) this.leave();
-    this.socket?.close();
-    this.socket = null;
-  }
+  ready(ready) { return this.send("setReady", { ready }); }
+  requestRematch() { return this.send("requestRematch"); }
+  input(x, y, action = "") { const now = performance.now(); if (!action && now - this.lastInputAt < 45) return; this.lastInputAt = now; this.send("input", { x, y, action, seq: ++this.inputSeq, clientTime: Date.now() }); }
+  leave() { this.clearSession(); this.roomConnection?.leave(true); }
+  clearSession() { this.session = null; try { window.sessionStorage.removeItem("mouse-strike-online-session"); } catch { /* Optional storage. */ } }
+  close(intentional = false) { this.intentionalClose = intentional; if (intentional) this.leave(); else this.roomConnection?.leave(); this.roomConnection = null; this.room = null; }
 }

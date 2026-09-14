@@ -1,4 +1,3 @@
-import { createVisualSystem } from "./fighter-rig.js";
 import {
   BookOpen,
   Bot,
@@ -38,6 +37,7 @@ import {
 } from "./fighter-profiles.js";
 import { CUSTOM_FIGHTER_ID, generateCustomFighter, isCustomFighter } from "./custom-fighter.js";
 import { MultiplayerClient } from "./multiplayer-client.js";
+import { PROFILE_KEY, applyMatchResult, createPilotProfile, dailyMissions, normalizePilotProfile } from "./pilot-profile.js";
 import {
   AIRDROP_ESCORT_DURATION,
   airdropRewardSpec,
@@ -97,6 +97,9 @@ import {
   const multiplayerDialog = document.querySelector("#multiplayer-dialog");
   const multiplayerClose = document.querySelector("#multiplayer-close");
   const multiplayerStatus = document.querySelector("#multiplayer-status");
+  const multiplayerOnboarding = document.querySelector("#multiplayer-onboarding");
+  const multiplayerOnboardingClose = document.querySelector("#multiplayer-onboarding-close");
+  const pilotCard = document.querySelector("#pilot-card");
   const multiplayerRoomForm = document.querySelector("#multiplayer-room-form");
   const multiplayerNickname = document.querySelector("#multiplayer-nickname");
   const multiplayerFighter = document.querySelector("#multiplayer-fighter");
@@ -107,6 +110,7 @@ import {
   const multiplayerRoomCode = document.querySelector("#multiplayer-room-code");
   const multiplayerLobby = document.querySelector("#multiplayer-lobby");
   const multiplayerRoomValue = document.querySelector("#multiplayer-room-value");
+  const multiplayerRoomName = document.querySelector("#multiplayer-room-name");
   const multiplayerModeValue = document.querySelector("#multiplayer-mode-value");
   const multiplayerPlayerList = document.querySelector("#multiplayer-player-list");
   const multiplayerConfigSummary = document.querySelector("#multiplayer-config-summary");
@@ -186,6 +190,7 @@ import {
   const finalWave = document.querySelector("#final-wave");
   const finalWeapon = document.querySelector("#final-weapon");
   const finalFighter = document.querySelector("#final-fighter");
+  const finalMedals = document.querySelector("#final-medals");
   const fighterCallSign = document.querySelector("#fighter-call-sign");
   const waveMessage = document.querySelector("#wave-message");
   const transformReady = document.querySelector("#transform-ready");
@@ -448,25 +453,53 @@ import {
     previousSnapshot: null,
     snapshotReceivedAt: 0,
     snapshotInterval: 1000 / 15,
+    lastSnapshotAt: 0,
     predicted: null,
     room: null,
     selectedMode: "coop",
     ready: false,
     lastStatus: "",
+    debugFrames: 0,
+    debugStartedAt: performance.now(),
+    lastHudAt: 0,
   };
+
+  const networkDebug = new URLSearchParams(window.location.search).get("debug") === "network" ? document.body.appendChild(document.createElement("output")) : null;
+  if (networkDebug) { networkDebug.className = "network-debug"; networkDebug.setAttribute("aria-label", "联机性能数据"); }
+
+  function loadPilotProfile() {
+    try { return normalizePilotProfile(JSON.parse(window.localStorage.getItem(PROFILE_KEY) || "null")); }
+    catch { return createPilotProfile(); }
+  }
+
+  let pilotProfile = loadPilotProfile();
+
+  function savePilotProfile() {
+    try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(pilotProfile)); } catch { /* Local profile is optional. */ }
+  }
+
+  function renderPilotCard() {
+    const missions = dailyMissions();
+    const missionText = missions.map((mission) => `${mission.label} ${Math.min(pilotProfile.daily?.[mission.stat] || 0, mission.target)}/${mission.target}`).join(" · ");
+    pilotCard.innerHTML = `<strong>${pilotProfile.nickname}</strong> · 联机 ${pilotProfile.matches} 局 · 胜 ${pilotProfile.wins} 局<br><span>今日任务：${missionText}</span>`;
+  }
 
   const multiplayer = new MultiplayerClient({
     onLobby: (room) => renderMultiplayerLobby(room),
     onMatchStart: (room) => startOnlineMatch(room),
     onSnapshot: (snapshot) => {
+      const receivedAt = performance.now();
+      if (online.lastSnapshotAt) online.snapshotInterval = online.snapshotInterval * 0.8 + (receivedAt - online.lastSnapshotAt) * 0.2;
+      online.lastSnapshotAt = receivedAt;
       online.previousSnapshot = online.snapshot;
       online.snapshot = snapshot;
-      online.snapshotReceivedAt = performance.now();
+      online.snapshotReceivedAt = receivedAt;
       online.predicted = online.predicted || { x: 0.5, y: 0.75 };
-      updateOnlineHud();
+      if (receivedAt - online.lastHudAt >= 100) { online.lastHudAt = receivedAt; updateOnlineHud(); }
     },
     onRoundEnd: ({ reason, round }) => showWave(`${reason} // 下一回合 ${round + 1}`),
-    onMatchEnd: ({ winnerId }) => finishOnlineMatch(winnerId),
+    onMatchEnd: (result) => finishOnlineMatch(result),
+    onCountdown: ({ startsAt }) => setMultiplayerStatus(`${Math.max(1, Math.ceil((startsAt - Date.now()) / 1000))} 秒后出击…`),
     onError: (message) => setMultiplayerStatus(message, true),
     onStatus: (message) => setMultiplayerStatus(message),
   });
@@ -533,10 +566,12 @@ import {
     online.mode = room.mode;
     multiplayerRoomForm.hidden = true;
     multiplayerLobby.hidden = false;
+    multiplayerRoomName.textContent = room.roomName || "好友作战编队";
     multiplayerRoomValue.textContent = room.roomCode;
     multiplayerModeValue.textContent = room.mode === "duel" ? "1v1 规则工坊" : "合作远征";
     multiplayerConfigSummary.textContent = configSummary(room.config);
     const isHost = room.hostId === multiplayer.playerId;
+    online.ready = Boolean(room.players.find((player) => player.id === multiplayer.playerId)?.ready);
     multiplayerPlayerList.replaceChildren(...room.players.map((player) => {
       const item = document.createElement("div");
       item.className = "multiplayer-player";
@@ -557,6 +592,8 @@ import {
     online.ready = false;
     setMultiplayerMode(online.selectedMode);
     multiplayerNickname.value = window.localStorage.getItem("mouse-strike-nickname") || "";
+    multiplayerOnboarding.hidden = window.localStorage.getItem("mouse-strike-online-onboarded") === "1";
+    renderPilotCard();
     const inviteRoom = new URLSearchParams(window.location.search).get("room");
     if (inviteRoom) multiplayerRoomCode.value = inviteRoom.toUpperCase().slice(0, 5);
     multiplayerDialog.showModal();
@@ -570,6 +607,10 @@ import {
     try {
       await multiplayer.connect();
       try { window.localStorage.setItem("mouse-strike-nickname", multiplayerNickname.value.trim()); } catch { /* Current session still works. */ }
+      pilotProfile.nickname = multiplayerNickname.value.trim().slice(0, 16) || pilotProfile.nickname;
+      pilotProfile.favoriteFighter = multiplayerFighter.value;
+      savePilotProfile();
+      renderPilotCard();
       return true;
     } catch (error) {
       setMultiplayerStatus(error.message, true);
@@ -633,9 +674,14 @@ import {
     showWave(room.mode === "duel" ? "对称空战 // 第 1 回合" : "合作远征 // 双机起飞");
   }
 
-  function finishOnlineMatch(winnerId) {
+  function finishOnlineMatch({ winnerId, stats = [] }) {
     if (!online.active) return;
     const winner = online.snapshot?.players.find((player) => player.id === winnerId);
+    const mine = stats.find((player) => player.id === multiplayer.playerId) || online.snapshot?.players.find((player) => player.id === multiplayer.playerId) || {};
+    const result = applyMatchResult(pilotProfile, { won: winnerId === multiplayer.playerId, rescues: mine.rescues, syncStrikes: mine.syncStrikes, pickups: mine.pickups });
+    pilotProfile = result.profile;
+    savePilotProfile();
+    renderPilotCard();
     state.running = false;
     state.ended = true;
     online.active = false;
@@ -644,6 +690,8 @@ import {
     finalWave.textContent = online.mode === "duel" ? "对局结束" : "远征结束";
     finalWeapon.textContent = "联机战报";
     finalFighter.textContent = "好友联机";
+    finalMedals.textContent = result.earned.length ? `本局勋章：${result.earned.join(" · ")}` : "完成好友联机任务记录";
+    restartButton.textContent = "原规则再来一局";
     gameOverPanel.hidden = false;
     audio?.gameOver?.();
   }
@@ -1195,6 +1243,16 @@ import {
   }
 
   function restartGame() {
+    if (online.room && !online.active) {
+      gameOverPanel.hidden = true;
+      gameScreen.hidden = true;
+      menuScreen.hidden = false;
+      document.body.style.overflow = "";
+      document.body.classList.remove("game-active");
+      multiplayer.requestRematch();
+      multiplayerDialog.showModal();
+      return;
+    }
     if (online.active || online.snapshot) {
       exitGame();
       return;
@@ -1213,7 +1271,7 @@ import {
   }
 
   async function exitGame() {
-    if (online.active || online.snapshot) {
+    if (online.active || online.snapshot || online.room) {
       online.active = false;
       online.snapshot = null;
       online.room = null;
@@ -2882,6 +2940,8 @@ import {
     finalWave.textContent = String(state.wave).padStart(2, "0");
     finalWeapon.textContent = `LV.${state.weaponLevel}`;
     finalFighter.textContent = getFighter().shortName;
+    finalMedals.textContent = "";
+    restartButton.textContent = "重新开始";
     try {
       const previousBest = Number(window.localStorage.getItem("mouse-strike-best") || 0);
       if (state.score > previousBest) window.localStorage.setItem("mouse-strike-best", String(state.score));
@@ -5717,7 +5777,6 @@ import {
     online.predicted.x += (target.x - online.predicted.x) * blend;
     online.predicted.y += (target.y - online.predicted.y) * blend;
     multiplayer.input(target.x, target.y);
-    updateOnlineHud();
   }
 
   function interpolateOnlineItem(previous, current, alpha) {
@@ -5789,29 +5848,34 @@ import {
     const previous = online.previousSnapshot;
     const alpha = Math.min(1, Math.max(0, (performance.now() - online.snapshotReceivedAt) / online.snapshotInterval));
     const previousWorld = previous?.world;
+    const previousPickups = new globalThis.Map((previousWorld?.pickups || []).map((item) => [item.id, item]));
+    const previousEnemies = new globalThis.Map((previousWorld?.enemies || []).map((item) => [item.id, item]));
+    const previousBullets = new globalThis.Map((previousWorld?.bullets || []).map((item) => [item.id, item]));
+    const previousPlayers = new globalThis.Map((previous?.players || []).map((item) => [item.id, item]));
+    const currentPlayers = new globalThis.Map(snapshot.players.map((item) => [item.id, item]));
     context.fillStyle = map.accent;
     context.globalAlpha = 0.08;
     context.fillRect(0, 0, state.width, 84);
     context.globalAlpha = 1;
-    snapshot.world.pickups.map((pickup) => interpolateOnlineItem(previousWorld?.pickups?.find((item) => item.id === pickup.id), pickup, alpha)).forEach((pickup) => {
+    snapshot.world.pickups.map((pickup) => interpolateOnlineItem(previousPickups.get(pickup.id), pickup, alpha)).forEach((pickup) => {
       context.fillStyle = pickup.type === "core" ? "#ea4f47" : "#55b976";
       context.beginPath(); context.arc(pickup.x * sx, pickup.y * sy, 9, 0, Math.PI * 2); context.fill();
     });
-    snapshot.world.enemies.map((enemy) => interpolateOnlineItem(previousWorld?.enemies?.find((item) => item.id === enemy.id), enemy, alpha)).forEach((enemy) => {
+    snapshot.world.enemies.map((enemy) => interpolateOnlineItem(previousEnemies.get(enemy.id), enemy, alpha)).forEach((enemy) => {
       const x = enemy.x * sx; const y = enemy.y * sy;
       context.fillStyle = enemy.elite ? "#7b2f6c" : "#b83d39";
       context.beginPath(); context.moveTo(x, y + 18); context.lineTo(x - 18, y - 14); context.lineTo(x + 18, y - 14); context.closePath(); context.fill();
       context.fillStyle = "rgba(16,34,43,.3)"; context.fillRect(x - 19, y - 23, 38, 3);
       context.fillStyle = "#f5db95"; context.fillRect(x - 19, y - 23, 38 * enemy.hp / enemy.maxHp, 3);
     });
-    snapshot.world.bullets.map((bullet) => interpolateOnlineItem(previousWorld?.bullets?.find((item) => item.id === bullet.id), bullet, alpha)).forEach((bullet) => {
-      const owner = snapshot.players.find((player) => player.id === bullet.ownerId);
+    snapshot.world.bullets.map((bullet) => interpolateOnlineItem(previousBullets.get(bullet.id), bullet, alpha)).forEach((bullet) => {
+      const owner = currentPlayers.get(bullet.ownerId);
       const fighter = owner ? (FIGHTERS[owner.fighterId] || getCustomFighter() || FIGHTERS.f22) : FIGHTERS.f22;
       context.fillStyle = fighter.accent;
       context.beginPath(); context.arc(bullet.x * sx, bullet.y * sy, bullet.kind === "tactical" ? 7 : 3.5, 0, Math.PI * 2); context.fill();
     });
     snapshot.players.forEach((player) => {
-      const oldPlayer = previous?.players?.find((item) => item.id === player.id);
+      const oldPlayer = previousPlayers.get(player.id);
       const sim = interpolateOnlineItem(oldPlayer?.sim && { id: player.id, x: oldPlayer.sim.x, y: oldPlayer.sim.y }, player.sim && { id: player.id, x: player.sim.x, y: player.sim.y }, alpha);
       const isMine = player.id === multiplayer.playerId;
       const x = isMine && online.predicted ? online.predicted.x * state.width : sim.x * sx;
@@ -5830,6 +5894,14 @@ import {
     const dt = Math.min(0.034, Math.max(0, (time - state.previousTime) / 1000));
     state.previousTime = time;
     if (online.active) {
+      online.debugFrames += 1;
+      if (networkDebug && time - online.debugStartedAt >= 1000) {
+        const world = online.snapshot?.world;
+        const fps = Math.round(online.debugFrames * 1000 / (time - online.debugStartedAt));
+        const entities = (world?.enemies?.length || 0) + (world?.bullets?.length || 0) + (world?.pickups?.length || 0);
+        networkDebug.textContent = `FPS ${fps} · PATCH ${Math.round(online.snapshotInterval)}ms · ENTITY ${entities}`;
+        online.debugFrames = 0; online.debugStartedAt = time;
+      }
       updateOnline(dt);
       drawOnline();
     } else if (state.hitStop > 0) {
@@ -6313,6 +6385,11 @@ import {
   window.addEventListener("resize", () => {
     if (!gameScreen.hidden) resizeCanvas();
   });
+  document.addEventListener("visibilitychange", () => {
+    if (!state.running) return;
+    if (document.hidden) cancelAnimationFrame(state.animationFrame);
+    else { state.previousTime = performance.now(); state.animationFrame = requestAnimationFrame(gameLoop); }
+  });
   window.addEventListener("keydown", (event) => {
     if (event.key.toLowerCase() === "q" && !gameScreen.hidden) {
       event.preventDefault();
@@ -6341,6 +6418,10 @@ import {
   wingmanButton.addEventListener("click", () => { if (!sendOnlineAction("wingman")) summonWingmen(); });
 
   multiplayerButton.addEventListener("click", openMultiplayerDialog);
+  multiplayerOnboardingClose.addEventListener("click", () => {
+    multiplayerOnboarding.hidden = true;
+    try { window.localStorage.setItem("mouse-strike-online-onboarded", "1"); } catch { /* Optional preference. */ }
+  });
   multiplayerClose.addEventListener("click", () => {
     if (online.room) multiplayer.close(true);
     online.room = null;
@@ -6396,14 +6477,20 @@ import {
   });
 
   const forceCanvas = new URLSearchParams(window.location.search).get("renderer") === "canvas";
-  visuals = forceCanvas
-    ? { available: false, setFighter() {}, setPreviewMode() {}, setToolMode() {}, resizeBattle() {}, renderBattle() {}, getRigSignature() { return ""; }, getHangarInteraction() { return null; }, getHangarPreview() { return null; }, dispose() {} }
-    : createVisualSystem({
+  visuals = { available: false, setFighter() {}, setPreviewMode() {}, setToolMode() {}, resizeBattle() {}, renderBattle() {}, getRigSignature() { return ""; }, getHangarInteraction() { return null; }, getHangarPreview() { return null; }, dispose() {} };
+  if (!forceCanvas) {
+    previewStatus.textContent = `${getFighter().shortName} / 正在装配 3D 机体`;
+    import("./fighter-rig.js").then(({ createVisualSystem }) => {
+      visuals = createVisualSystem({
       hangarCanvas: fighterPreview,
       battleCanvas: battleThreeCanvas,
       fighter: getFighter(),
       reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    });
+      });
+      visuals.setFighter(getFighter());
+      previewStatus.textContent = `${getFighter().shortName} / 飞行形态`;
+    }).catch(() => { previewStatus.textContent = `${getFighter().shortName} / Canvas 模式`; });
+  }
   createIcons({
     icons: {
       BookOpen,

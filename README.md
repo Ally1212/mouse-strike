@@ -113,7 +113,7 @@
 
 ## 本地运行
 
-环境要求：Node.js `20.19+` 或 `22.12+`。
+环境要求：Node.js `22.12+`（联机服务使用 Colyseus 0.18）。
 
 ```bash
 npm install
@@ -126,7 +126,7 @@ npm run dev
 npm run server
 ```
 
-默认客户端连接 `ws://localhost:8787`。部署服务后可用 `VITE_GAME_SERVER_URL` 指向对应的 `ws://` 或 `wss://` 地址。
+默认客户端通过 Colyseus SDK 连接 `ws://localhost:8787`。部署服务后可用 `VITE_GAME_SERVER_URL` 指向对应的 `ws://` 或 `wss://` 地址。
 
 默认开发地址由 Vite 输出。指定端口运行：
 

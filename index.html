@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f8f1df" />
+    <meta name="description" content="鼠标操控的浏览器战机射击游戏，支持双人合作远征与好友 1v1。" />
+    <meta property="og:title" content="鼠标突击队 · 好友联机" />
+    <meta property="og:description" content="选择战机，邀请朋友，双机出击。" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <title>鼠标突击队 | Mouse Strike</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="paper-theme.css" />
@@ -231,6 +236,12 @@
             <div><p class="eyebrow">两人实时作战</p><h2 id="multiplayer-title">好友联机</h2></div>
             <button id="multiplayer-close" class="icon-button" type="button" aria-label="关闭好友联机"><i data-lucide="x" aria-hidden="true"></i></button>
           </div>
+          <section id="multiplayer-onboarding" class="multiplayer-onboarding" aria-label="好友联机步骤">
+            <strong>叫上朋友，三步开战</strong>
+            <ol><li>创建一间房</li><li>发送邀请码</li><li>双方准备出击</li></ol>
+            <button id="multiplayer-onboarding-close" class="secondary-button" type="button">明白了</button>
+          </section>
+          <section id="pilot-card" class="pilot-card" aria-label="本地飞行员档案"></section>
           <p id="multiplayer-status" class="multiplayer-status" aria-live="polite">创建房间与朋友一起出击，或输入房间码加入。</p>
           <form id="multiplayer-room-form" class="multiplayer-form">
             <label><span>飞行员昵称</span><input id="multiplayer-nickname" maxlength="16" autocomplete="nickname" placeholder="例如：王牌小队长" required /></label>
@@ -259,6 +270,7 @@
             </div>
           </form>
           <section id="multiplayer-lobby" class="multiplayer-lobby" hidden aria-live="polite">
+            <h3 id="multiplayer-room-name">天穹编队</h3>
             <div class="lobby-code"><span>房间码</span><strong id="multiplayer-room-value">-----</strong><button id="multiplayer-copy" class="secondary-button" type="button">复制</button><button id="multiplayer-share" class="secondary-button" type="button">分享邀请</button></div>
             <p id="multiplayer-mode-value">合作远征</p>
             <div id="multiplayer-player-list" class="multiplayer-player-list"></div>
@@ -417,6 +429,7 @@
             <button id="restart-button" class="start-button start-button--small" type="button">重新开始</button>
             <button id="menu-button" class="secondary-button" type="button">返回菜单</button>
           </div>
+          <p id="final-medals" class="final-medals" aria-live="polite"></p>
         </div>
       </section>
     </main>

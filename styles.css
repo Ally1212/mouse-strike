@@ -2703,6 +2703,31 @@ kbd {
   width: min(720px, calc(100vw - 32px));
 }
 
+.multiplayer-onboarding,
+.pilot-card {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.multiplayer-onboarding ol {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: online-step;
+}
+
+.multiplayer-onboarding li { flex: 1; font-size: 12px; counter-increment: online-step; }
+.multiplayer-onboarding li::before { content: counter(online-step); display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 5px; border-radius: 50%; background: var(--acid); color: #10222b; font-weight: 900; }
+.pilot-card { font: 700 12px/1.5 monospace; }
+.pilot-card strong { color: var(--acid); }
+.multiplayer-lobby > h3 { margin: 0 0 8px; font-size: 20px; }
+.final-medals { margin: 12px 0 0; font: 800 13px/1.5 monospace; color: var(--acid); }
+.network-debug { position: fixed; left: 10px; bottom: 10px; z-index: 100; padding: 6px 9px; border: 1px solid #10222b; background: rgba(248, 241, 223, .9); color: #10222b; font: 700 11px monospace; }
+
 .multiplayer-status {
   min-height: 22px;
   margin: 0 0 16px;

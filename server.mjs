@@ -1,7 +1,6 @@
-import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
-import { WebSocketServer, WebSocket } from "ws";
+import { CloseCode, Room, defineRoom, defineServer } from "colyseus";
 import { FIGHTERS } from "./fighter-profiles.js";
+import { BulletState, EnemyState, GameState, PickupState, PlayerState, SimState, WorldState } from "./multiplayer-state.js";
 import {
   MAX_PLAYERS,
   SERVER_TICK_RATE,
@@ -18,23 +17,8 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "0.0.0.0";
 const WIDTH = 960;
 const HEIGHT = 720;
-const rooms = new Map();
-
-function send(socket, type, payload = {}) {
-  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, ...payload }));
-}
-
-function sendRaw(socket, encoded) {
-  if (socket?.readyState === WebSocket.OPEN) socket.send(encoded);
-}
-
-function fail(socket, code, message) {
-  send(socket, "error", { code, message });
-}
-
 function broadcast(room, type, payload = {}) {
-  const encoded = JSON.stringify({ type, ...payload });
-  room.players.forEach((player) => sendRaw(player.socket, encoded));
+  room.broadcast(type, payload);
 }
 
 function publicPlayer(player) {
@@ -46,6 +30,9 @@ function publicPlayer(player) {
     connected: player.connected,
     score: player.score,
     roundWins: player.roundWins,
+    rescues: player.rescues,
+    syncStrikes: player.syncStrikes,
+    pickups: player.pickups,
   };
 }
 
@@ -60,25 +47,53 @@ function lobby(room) {
   };
 }
 
-function syncLobby(room) {
-  broadcast(room, "lobby", { room: lobby(room) });
+function copyFields(target, source, fields) {
+  fields.forEach((field) => { target[field] = source?.[field] ?? target[field]; });
 }
 
-function createRoom(mode, config) {
-  let code = createRoomCode();
-  while (rooms.has(code)) code = createRoomCode();
-  const room = {
-    code,
-    mode: mode === "duel" ? "duel" : "coop",
-    config: normalizeMatchConfig(config),
-    hostId: "",
-    players: [],
-    status: "lobby",
-    world: null,
-    lastTick: Date.now(),
-  };
-  rooms.set(code, room);
-  return room;
+function syncCollection(target, items, Klass, fields) {
+  const alive = new Set();
+  items.forEach((item) => {
+    const key = String(item.id);
+    alive.add(key);
+    let state = target.get(key);
+    if (!state) { state = new Klass(); target.set(key, state); }
+    copyFields(state, item, fields);
+  });
+  [...target.keys()].forEach((key) => { if (!alive.has(key)) target.delete(key); });
+}
+
+function syncState(room) {
+  const state = room.state;
+  state.phase = room.status;
+  state.mode = room.mode;
+  state.hostSessionId = room.hostId;
+  state.serverTime = Date.now();
+  state.configJson = JSON.stringify(room.config);
+  const now = Date.now();
+  const world = room.world;
+  state.world.elapsed = world ? (now - world.startedAt) / 1000 : 0;
+  state.world.round = world?.round || 0;
+  state.world.roundLeft = world ? Math.max(0, room.config.roundSeconds - (now - world.roundStartedAt) / 1000) : 0;
+  state.world.link = world?.link || 0;
+  state.world.respawns = world?.respawns || 0;
+  state.world.event = world?.event || "";
+  syncCollection(state.world.enemies, world?.enemies || [], EnemyState, ["id", "x", "y", "hp", "maxHp", "radius", "speed", "elite"]);
+  syncCollection(state.world.bullets, world?.bullets || [], BulletState, ["id", "ownerId", "x", "y", "vx", "vy", "damage", "kind", "life"]);
+  syncCollection(state.world.pickups, world?.pickups || [], PickupState, ["id", "x", "y", "type", "life"]);
+  room.players.forEach((player) => {
+    let playerState = state.players.get(player.id);
+    if (!playerState) { playerState = new PlayerState(); playerState.id = player.id; playerState.sim = new SimState(); state.players.set(player.id, playerState); }
+    copyFields(playerState, player, ["nickname", "fighterId", "ready", "connected", "score", "roundWins", "rescues", "syncStrikes", "pickups"]);
+    if (player.sim) copyFields(playerState.sim, player.sim, ["x", "y", "targetX", "targetY", "health", "maxHealth", "cores", "transformUntil", "tacticalUntil", "wingmanUntil", "downedUntil", "reviveProgress", "invulnerableUntil"]);
+  });
+  const playerIds = new Set(room.players.map((player) => player.id));
+  [...state.players.keys()].forEach((key) => { if (!playerIds.has(key)) state.players.delete(key); });
+}
+
+function syncLobby(room) {
+  syncState(room);
+  broadcast(room, "lobby", { room: lobby(room) });
 }
 
 function initialPlayer(slot, mode, config) {
@@ -103,6 +118,9 @@ function startMatch(room) {
     player.ready = false;
     player.score = 0;
     player.roundWins = 0;
+    player.rescues = 0;
+    player.syncStrikes = 0;
+    player.pickups = 0;
     player.input = { x: index ? 0.58 : 0.42, y: 0.76, action: "" };
     player.sim = initialPlayer(index, room.mode, room.config);
   });
@@ -116,17 +134,21 @@ function resetRound(room) {
   room.world.pickups = [];
   room.world.link = 0;
   room.world.nextPickupAt = Date.now() + 7000;
+  room.world.roundWinner = "";
   room.players.forEach((player, index) => { player.sim = initialPlayer(index, room.mode, room.config); });
 }
 
 function endMatch(room, winnerId = "") {
+  if (!room.world || room.status === "finished") return;
   room.status = "finished";
   room.world.matchWinner = winnerId;
-  broadcast(room, "matchEnd", { winnerId, room: lobby(room) });
+  broadcast(room, "matchEnd", { winnerId, room: lobby(room), stats: room.players.map(publicPlayer) });
   syncLobby(room);
 }
 
 function finishRound(room, winnerId, reason) {
+  if (room.world.roundWinner) return;
+  room.world.roundWinner = winnerId || "draw";
   const winner = room.players.find((player) => player.id === winnerId);
   if (winner) winner.roundWins += 1;
   broadcast(room, "roundEnd", { winnerId, reason, round: room.world.round, scores: room.players.map(publicPlayer) });
@@ -152,8 +174,11 @@ function fighterDamage(player, room) {
 }
 
 function addBullet(room, source, target, damage, kind = "pulse") {
-  const dx = target.x - source.sim.x;
-  const dy = target.y - source.sim.y;
+  const targetX = target.sim?.x ?? target.x;
+  const targetY = target.sim?.y ?? target.y;
+  if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
+  const dx = targetX - source.sim.x;
+  const dy = targetY - source.sim.y;
   const length = Math.max(1, Math.hypot(dx, dy));
   room.world.bullets.push({ id: room.world.nextId++, ownerId: source.id, x: source.sim.x, y: source.sim.y, vx: dx / length * 680, vy: dy / length * 680, damage, kind, life: 1.35 });
 }
@@ -195,6 +220,8 @@ function activateAction(room, player, action, now) {
       room.world.bullets = [];
       room.world.link = 0;
       room.world.event = "同步合击 // 天穹共鸣";
+      player.syncStrikes += 1;
+      other.syncStrikes += 1;
     }
   }
   if (action === "wingman" && sim.wingmanUntil <= now) sim.wingmanUntil = now + 9_000;
@@ -224,7 +251,7 @@ function updatePlayers(room, dt, now) {
       const rescuer = room.players.find((item) => item.id !== downed.id && item.sim.downedUntil <= now);
       if (rescuer && Math.hypot(rescuer.sim.x - downed.sim.x, rescuer.sim.y - downed.sim.y) < 86) {
         downed.sim.reviveProgress += dt;
-        if (downed.sim.reviveProgress >= 2) { downed.sim.downedUntil = 0; downed.sim.health = downed.sim.maxHealth * 0.42; downed.sim.invulnerableUntil = now + 1500; downed.sim.reviveProgress = 0; room.world.link = Math.min(100, room.world.link + 25); }
+        if (downed.sim.reviveProgress >= 2) { downed.sim.downedUntil = 0; downed.sim.health = downed.sim.maxHealth * 0.42; downed.sim.invulnerableUntil = now + 1500; downed.sim.reviveProgress = 0; room.world.link = Math.min(100, room.world.link + 25); rescuer.rescues += 1; }
       } else downed.sim.reviveProgress = 0;
     }
   }
@@ -314,6 +341,7 @@ function updateBullets(room, dt, now) {
       if (Math.hypot(player.sim.x - pickup.x, player.sim.y - pickup.y) < 46) {
         if (pickup.type === "core") player.sim.cores = Math.min(3, player.sim.cores + 1);
         else player.sim.health = Math.min(player.sim.maxHealth, player.sim.health + 35);
+        player.pickups += 1;
         pickup.life = 0;
       }
     }
@@ -321,134 +349,132 @@ function updateBullets(room, dt, now) {
   world.pickups = world.pickups.filter((pickup) => pickup.life > 0);
 }
 
-function snapshot(room) {
+function tick(room) {
   const now = Date.now();
-  return {
-    now, mode: room.mode, status: room.status, config: room.config,
-    world: {
-      width: WIDTH, height: HEIGHT, elapsed: room.world ? (now - room.world.startedAt) / 1000 : 0,
-      round: room.world?.round || 0, roundLeft: room.world ? Math.max(0, room.config.roundSeconds - (now - room.world.roundStartedAt) / 1000) : 0,
-      link: room.world?.link || 0, respawns: room.world?.respawns || 0, event: room.world?.event || "",
-      enemies: room.world?.enemies || [], bullets: room.world?.bullets || [], pickups: room.world?.pickups || [],
-    },
-    players: room.players.map((player) => ({ ...publicPlayer(player), sim: player.sim })),
-  };
+  if (room.status !== "playing" || room.players.length !== MAX_PLAYERS) return;
+  const dt = Math.min(0.05, Math.max(0.01, (now - room.lastTick) / 1000));
+  room.lastTick = now;
+  updatePlayers(room, dt, now);
+  if (room.mode === "coop") updateCoop(room, dt, now); else updateDuel(room, dt, now);
+  updateBullets(room, dt, now);
+  syncState(room);
 }
 
-function tick() {
-  const now = Date.now();
-  for (const room of rooms.values()) {
-    if (room.status !== "playing" || room.players.length !== MAX_PLAYERS) continue;
-    const dt = Math.min(0.05, Math.max(0.01, (now - room.lastTick) / 1000));
-    room.lastTick = now;
-    updatePlayers(room, dt, now);
-    if (room.mode === "coop") updateCoop(room, dt, now); else updateDuel(room, dt, now);
-    updateBullets(room, dt, now);
-  }
-}
-
-function attachPlayer(room, socket, payload, host = false) {
+function attachPlayer(room, client, payload, host = false) {
+  let fighterId = FIGHTERS[payload.fighterId] ? payload.fighterId : "j20";
+  if (room.mode === "duel" && !isDuelFighterAllowed(fighterId)) fighterId = "j20";
   const player = {
-    id: randomUUID(), socket, token: randomUUID(), nickname: normalizeNickname(payload.nickname),
-    fighterId: FIGHTERS[payload.fighterId] ? payload.fighterId : "j20", ready: false, connected: true,
-    score: 0, roundWins: 0, lastInputSeq: 0, input: { x: 0.5, y: 0.75, action: "" }, sim: null,
+    id: client.sessionId, client, nickname: normalizeNickname(payload.nickname), fighterId, ready: false, connected: true,
+    score: 0, roundWins: 0, rescues: 0, syncStrikes: 0, pickups: 0, lastInputSeq: 0, input: { x: 0.5, y: 0.75, action: "" }, sim: null,
   };
   room.players.push(player);
   if (host) room.hostId = player.id;
-  socket.player = player;
-  socket.room = room;
-  send(socket, "joined", { playerId: player.id, token: player.token, room: lobby(room) });
   syncLobby(room);
+  return player;
 }
 
 function detachPlayer(room, player) {
   room.players = room.players.filter((item) => item.id !== player.id);
   if (room.hostId === player.id) room.hostId = room.players[0]?.id || "";
-  if (!room.players.length) rooms.delete(room.code);
-  else {
+  if (room.players.length) {
     if (room.status === "playing") endMatch(room, room.players[0]?.id || "");
     syncLobby(room);
   }
 }
 
-function handleMessage(socket, raw) {
-  if (String(raw).length > 16_384) return fail(socket, "MESSAGE_TOO_LARGE", "消息过大");
-  let message;
-  try { message = JSON.parse(String(raw)); } catch { return fail(socket, "INVALID_JSON", "消息格式无效"); }
-  const payload = message.payload || {};
-  if (message.type === "createRoom") {
-    if (socket.room) return fail(socket, "ALREADY_IN_ROOM", "已在房间中");
-    const room = createRoom(payload.mode, payload.config);
-    attachPlayer(room, socket, payload, true);
-    return;
+function sendError(client, code, message) { client.send("error", { code, message }); }
+
+class GameRoom extends Room {
+  onCreate(options = {}) {
+    this.roomId = createRoomCode();
+    this.code = this.roomId;
+    this.maxClients = MAX_PLAYERS;
+    this.maxMessagesPerSecond = 45;
+    this.patchRate = 1000 / SNAPSHOT_RATE;
+    this.autoDispose = true;
+    this.mode = options.mode === "duel" ? "duel" : "coop";
+    this.config = normalizeMatchConfig(options.config);
+    this.hostId = "";
+    this.players = [];
+    this.status = "lobby";
+    this.world = null;
+    this.lastTick = Date.now();
+    const state = new GameState();
+    state.protocolVersion = 2;
+    state.phase = "lobby";
+    state.mode = this.mode;
+    state.roomName = ["赤焰双翼", "天穹编队", "银翼航线", "龙牙小队"][Math.floor(Math.random() * 4)];
+    state.world = new WorldState();
+    state.world.width = WIDTH;
+    state.world.height = HEIGHT;
+    this.setState(state);
+    this.setSimulationInterval(() => tick(this), 1000 / SERVER_TICK_RATE);
+    this.onMessage("selectFighter", (client, payload = {}) => this.selectFighter(client, payload));
+    this.onMessage("updateConfig", (client, payload = {}) => this.updateConfig(client, payload));
+    this.onMessage("ready", (client, payload = {}) => this.setReady(client, payload));
+    this.onMessage("setReady", (client, payload = {}) => this.setReady(client, payload));
+    this.onMessage("input", (client, payload = {}) => this.handleInput(client, payload));
+    this.onMessage("requestRematch", () => this.requestRematch());
   }
-  if (message.type === "joinRoom") {
-    const room = rooms.get(String(payload.roomCode || "").toUpperCase());
-    if (!room || room.players.length >= MAX_PLAYERS || room.status === "playing") return fail(socket, "ROOM_UNAVAILABLE", "房间不存在、已满或已开始");
-    attachPlayer(room, socket, payload);
-    return;
+
+  onJoin(client, options = {}) {
+    if (this.status !== "lobby") throw new Error("对局已开始");
+    attachPlayer(this, client, options, this.players.length === 0);
   }
-  if (message.type === "reconnect") {
-    const room = rooms.get(String(payload.roomCode || "").toUpperCase());
-    const player = room?.players.find((item) => item.token === payload.token && !item.connected && Date.now() - item.disconnectedAt < 30_000);
-    if (!room || !player) return fail(socket, "RECONNECT_EXPIRED", "重连窗口已结束");
-    player.socket = socket;
-    player.connected = true;
-    player.disconnectedAt = 0;
-    socket.player = player;
-    socket.room = room;
-    send(socket, "joined", { playerId: player.id, token: player.token, room: lobby(room), reconnected: true });
-    syncLobby(room);
-    return;
+
+  async onLeave(client, code) {
+    const player = this.players.find((item) => item.id === client.sessionId);
+    if (!player) return;
+    if (code === CloseCode.CONSENTED) { detachPlayer(this, player); return; }
+    player.connected = false;
+    syncLobby(this);
+    try {
+      player.client = await this.allowReconnection(client, 30);
+      player.connected = true;
+      syncLobby(this);
+    } catch { detachPlayer(this, player); }
   }
-  const room = socket.room;
-  const player = socket.player;
-  if (!room || !player) return fail(socket, "NOT_IN_ROOM", "请先进入房间");
-  if (message.type === "selectFighter") {
+
+  selectFighter(client, payload) {
+    const player = this.players.find((item) => item.id === client.sessionId);
     const fighterId = String(payload.fighterId || "");
-    if (!FIGHTERS[fighterId] || (room.mode === "duel" && !isDuelFighterAllowed(fighterId))) return fail(socket, "FIGHTER_NOT_ALLOWED", "该战机不可用于本模式");
-    player.fighterId = fighterId; player.ready = false; syncLobby(room); return;
+    if (!player || !FIGHTERS[fighterId] || (this.mode === "duel" && !isDuelFighterAllowed(fighterId))) return sendError(client, "FIGHTER_NOT_ALLOWED", "该战机不可用于本模式");
+    player.fighterId = fighterId; player.ready = false; syncLobby(this);
   }
-  if (message.type === "updateConfig") {
-    if (room.hostId !== player.id || room.status !== "lobby") return fail(socket, "CONFIG_FORBIDDEN", "只有房主可修改规则");
-    room.config = normalizeMatchConfig(payload.config); room.players.forEach((item) => { item.ready = false; }); syncLobby(room); return;
+
+  updateConfig(client, payload) {
+    if (this.hostId !== client.sessionId || this.status !== "lobby") return sendError(client, "CONFIG_FORBIDDEN", "只有房主可修改规则");
+    this.config = normalizeMatchConfig(payload.config); this.players.forEach((item) => { item.ready = false; }); syncLobby(this);
   }
-  if (message.type === "ready") {
-    if (room.status !== "lobby") return;
-    player.ready = Boolean(payload.ready);
-    syncLobby(room);
-    if (room.players.length === MAX_PLAYERS && room.players.every((item) => item.ready)) startMatch(room);
-    return;
+
+  setReady(client, payload) {
+    const player = this.players.find((item) => item.id === client.sessionId);
+    if (!player || this.status !== "lobby") return;
+    player.ready = Boolean(payload.ready); syncLobby(this);
+    if (this.players.length === MAX_PLAYERS && this.players.every((item) => item.connected && item.ready)) {
+      this.status = "countdown";
+      const startsAt = Date.now() + 3000;
+      syncState(this);
+      this.broadcast("countdown", { startsAt });
+      this.clock.setTimeout(() => { if (this.status === "countdown") startMatch(this); }, 3000);
+    }
   }
-  if (message.type === "input" && room.status === "playing") {
+
+  handleInput(client, payload) {
+    const player = this.players.find((item) => item.id === client.sessionId);
+    if (!player || this.status !== "playing") return;
     const seq = Number(payload.seq || 0);
     if (seq >= player.lastInputSeq) { player.lastInputSeq = seq; player.input = validInput(payload); }
   }
-  if (message.type === "leave") detachPlayer(room, player);
+
+  requestRematch() {
+    if (this.status !== "finished") return;
+    this.status = "lobby"; this.world = null;
+    this.players.forEach((player) => { player.ready = false; player.sim = null; });
+    syncLobby(this);
+  }
 }
 
-const httpServer = createServer((request, response) => {
-  response.writeHead(200, { "Content-Type": "application/json" });
-  response.end(JSON.stringify({ service: "mouse-strike-multiplayer", rooms: rooms.size }));
-});
-const wss = new WebSocketServer({ server: httpServer });
-wss.on("connection", (socket) => {
-  socket.on("message", (message) => handleMessage(socket, message));
-  socket.on("pong", () => { socket.lastPongAt = Date.now(); });
-  socket.on("close", () => {
-    const { room, player } = socket;
-    if (!room || !player) return;
-    player.connected = false;
-    player.disconnectedAt = Date.now();
-    syncLobby(room);
-    setTimeout(() => {
-      if (!player.connected && room.players.includes(player) && Date.now() - player.disconnectedAt >= 30_000) detachPlayer(room, player);
-    }, 30_100);
-  });
-  socket.lastPongAt = Date.now();
-  send(socket, "hello", { tickRate: SERVER_TICK_RATE, snapshotRate: SNAPSHOT_RATE, protocolVersion: 1 });
-});
-setInterval(tick, 1000 / SERVER_TICK_RATE);
-setInterval(() => { rooms.forEach((room) => { if (room.status === "playing") broadcast(room, "snapshot", { snapshot: snapshot(room) }); }); }, 1000 / SNAPSHOT_RATE);
-setInterval(() => { wss.clients.forEach((socket) => { if (socket.readyState !== WebSocket.OPEN) return; socket.ping(); }); }, 15_000);
-httpServer.listen(PORT, HOST, () => console.log(`Mouse Strike multiplayer server listening on ws://${HOST}:${PORT}`));
+export const server = defineServer({ rooms: { game: defineRoom(GameRoom) } });
+await server.listen(PORT, HOST);
+console.log(`Mouse Strike Colyseus server listening on ws://${HOST}:${PORT}`);
