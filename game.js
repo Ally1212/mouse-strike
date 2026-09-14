@@ -445,6 +445,10 @@ import {
     active: false,
     mode: "coop",
     snapshot: null,
+    previousSnapshot: null,
+    snapshotReceivedAt: 0,
+    snapshotInterval: 1000 / 15,
+    predicted: null,
     room: null,
     selectedMode: "coop",
     ready: false,
@@ -454,7 +458,13 @@ import {
   const multiplayer = new MultiplayerClient({
     onLobby: (room) => renderMultiplayerLobby(room),
     onMatchStart: (room) => startOnlineMatch(room),
-    onSnapshot: (snapshot) => { online.snapshot = snapshot; updateOnlineHud(); },
+    onSnapshot: (snapshot) => {
+      online.previousSnapshot = online.snapshot;
+      online.snapshot = snapshot;
+      online.snapshotReceivedAt = performance.now();
+      online.predicted = online.predicted || { x: 0.5, y: 0.75 };
+      updateOnlineHud();
+    },
     onRoundEnd: ({ reason, round }) => showWave(`${reason} // 下一回合 ${round + 1}`),
     onMatchEnd: ({ winnerId }) => finishOnlineMatch(winnerId),
     onError: (message) => setMultiplayerStatus(message, true),
@@ -605,6 +615,8 @@ import {
     online.active = true;
     online.mode = room.mode;
     online.snapshot = null;
+    online.previousSnapshot = null;
+    online.predicted = null;
     multiplayerDialog.close();
     menuScreen.hidden = true;
     gameScreen.hidden = false;
@@ -5699,8 +5711,19 @@ import {
 
   function updateOnline() {
     if (!online.snapshot) return;
-    multiplayer.input(state.pointer.x / Math.max(1, state.width), state.pointer.y / Math.max(1, state.height));
+    const target = { x: state.pointer.x / Math.max(1, state.width), y: state.pointer.y / Math.max(1, state.height) };
+    const blend = 1 - Math.pow(0.0001, 1 / 60);
+    online.predicted = online.predicted || target;
+    online.predicted.x += (target.x - online.predicted.x) * blend;
+    online.predicted.y += (target.y - online.predicted.y) * blend;
+    multiplayer.input(target.x, target.y);
     updateOnlineHud();
+  }
+
+  function interpolateOnlineItem(previous, current, alpha) {
+    if (!current) return previous;
+    if (!previous || previous.id !== current.id) return current;
+    return { ...current, x: previous.x + (current.x - previous.x) * alpha, y: previous.y + (current.y - previous.y) * alpha };
   }
 
   function drawOnlinePlane(player, x, y, scale) {
@@ -5763,28 +5786,38 @@ import {
     }
     const sx = state.width / snapshot.world.width;
     const sy = state.height / snapshot.world.height;
+    const previous = online.previousSnapshot;
+    const alpha = Math.min(1, Math.max(0, (performance.now() - online.snapshotReceivedAt) / online.snapshotInterval));
+    const previousWorld = previous?.world;
     context.fillStyle = map.accent;
     context.globalAlpha = 0.08;
     context.fillRect(0, 0, state.width, 84);
     context.globalAlpha = 1;
-    snapshot.world.pickups.forEach((pickup) => {
+    snapshot.world.pickups.map((pickup) => interpolateOnlineItem(previousWorld?.pickups?.find((item) => item.id === pickup.id), pickup, alpha)).forEach((pickup) => {
       context.fillStyle = pickup.type === "core" ? "#ea4f47" : "#55b976";
       context.beginPath(); context.arc(pickup.x * sx, pickup.y * sy, 9, 0, Math.PI * 2); context.fill();
     });
-    snapshot.world.enemies.forEach((enemy) => {
+    snapshot.world.enemies.map((enemy) => interpolateOnlineItem(previousWorld?.enemies?.find((item) => item.id === enemy.id), enemy, alpha)).forEach((enemy) => {
       const x = enemy.x * sx; const y = enemy.y * sy;
       context.fillStyle = enemy.elite ? "#7b2f6c" : "#b83d39";
       context.beginPath(); context.moveTo(x, y + 18); context.lineTo(x - 18, y - 14); context.lineTo(x + 18, y - 14); context.closePath(); context.fill();
       context.fillStyle = "rgba(16,34,43,.3)"; context.fillRect(x - 19, y - 23, 38, 3);
       context.fillStyle = "#f5db95"; context.fillRect(x - 19, y - 23, 38 * enemy.hp / enemy.maxHp, 3);
     });
-    snapshot.world.bullets.forEach((bullet) => {
+    snapshot.world.bullets.map((bullet) => interpolateOnlineItem(previousWorld?.bullets?.find((item) => item.id === bullet.id), bullet, alpha)).forEach((bullet) => {
       const owner = snapshot.players.find((player) => player.id === bullet.ownerId);
       const fighter = owner ? (FIGHTERS[owner.fighterId] || getCustomFighter() || FIGHTERS.f22) : FIGHTERS.f22;
       context.fillStyle = fighter.accent;
       context.beginPath(); context.arc(bullet.x * sx, bullet.y * sy, bullet.kind === "tactical" ? 7 : 3.5, 0, Math.PI * 2); context.fill();
     });
-    snapshot.players.forEach((player) => drawOnlinePlane(player, player.sim.x * sx, player.sim.y * sy, Math.min(sx, sy)));
+    snapshot.players.forEach((player) => {
+      const oldPlayer = previous?.players?.find((item) => item.id === player.id);
+      const sim = interpolateOnlineItem(oldPlayer?.sim && { id: player.id, x: oldPlayer.sim.x, y: oldPlayer.sim.y }, player.sim && { id: player.id, x: player.sim.x, y: player.sim.y }, alpha);
+      const isMine = player.id === multiplayer.playerId;
+      const x = isMine && online.predicted ? online.predicted.x * state.width : sim.x * sx;
+      const y = isMine && online.predicted ? online.predicted.y * state.height : sim.y * sy;
+      drawOnlinePlane(player, x, y, Math.min(sx, sy));
+    });
     context.fillStyle = "#10222b";
     context.font = "800 12px monospace";
     context.textAlign = "left";

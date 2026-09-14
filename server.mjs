@@ -24,12 +24,17 @@ function send(socket, type, payload = {}) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, ...payload }));
 }
 
+function sendRaw(socket, encoded) {
+  if (socket?.readyState === WebSocket.OPEN) socket.send(encoded);
+}
+
 function fail(socket, code, message) {
   send(socket, "error", { code, message });
 }
 
 function broadcast(room, type, payload = {}) {
-  room.players.forEach((player) => send(player.socket, type, payload));
+  const encoded = JSON.stringify({ type, ...payload });
+  room.players.forEach((player) => sendRaw(player.socket, encoded));
 }
 
 function publicPlayer(player) {
