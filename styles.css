@@ -8680,6 +8680,59 @@ body:not(.game-active) .audio-controls {
   white-space: nowrap;
 }
 
+/* Simplified three-part loadout: primary, fusion and ultimate. */
+.fighter-traits {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.fighter-traits > div,
+.fighter-traits > div:nth-child(n + 3) {
+  display: grid !important;
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.fighter-traits span {
+  color: color-mix(in srgb, var(--fighter-accent) 72%, #ffffff);
+  font: 10px/1.2 "SFMono-Regular", "Cascadia Mono", "PingFang SC", monospace;
+}
+
+.fighter-traits strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fighter-traits p {
+  display: -webkit-box;
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.fighter-stats {
+  grid-template-columns: repeat(3, minmax(52px, 1fr));
+}
+
+.mobile-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 @media (max-width: 900px) {
   .topbar-actions {
     margin-right: 168px;
@@ -8692,6 +8745,11 @@ body:not(.game-active) .audio-controls {
 
   .hangar-heading h2 {
     font-size: clamp(38px, 10vw, 48px);
+  }
+
+  .fighter-traits {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 

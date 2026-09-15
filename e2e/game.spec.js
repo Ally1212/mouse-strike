@@ -36,7 +36,6 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await expect(page.locator("#fighter-reference-image")).toHaveCSS("object-fit", "contain");
   await expect(page.locator('[data-preview="flight"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[data-preview="transform"]')).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(async () => page.evaluate(() => typeof window.gameAudio?.wingmanSummon)).toBe("function");
   await expect.poll(async () => page.evaluate(() => typeof window.gameAudio?.laserBeam)).toBe("function");
   await expect.poll(async () => page.evaluate(() => typeof window.gameAudio?.structureImpact)).toBe("function");
   await expect.poll(async () => page.evaluate(() => typeof window.gameAudio?.barrierImpact)).toBe("function");
@@ -63,7 +62,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await expect(page.locator("#rules-dialog")).toBeVisible();
   await expect(page.locator("#rules-dialog .rule-list li")).toHaveCount(5);
   await expect(page.locator("#rules-dialog .mission-brief__note")).toHaveCount(0);
-  await expect(page.locator("#rules-dialog .rule-key")).toHaveText(["鼠标", "左键", "右键", "Space", "E"]);
+  await expect(page.locator("#rules-dialog .rule-key")).toHaveText(["鼠标", "左键", "右键", "红球", "Q"]);
   await expect(page.locator("#rules-dialog .pickup-guide span")).toHaveCount(7);
   await page.locator("#rules-close").click();
   await expect(page.locator("#rules-dialog")).toBeHidden();
@@ -90,8 +89,8 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
     await expect(page.locator("#selected-name")).toHaveText(name);
     await expect(page.locator("#selected-transform-name")).toHaveText(FIGHTERS[fighterId].transformation.label);
     await expect(page.locator("#selected-transform-duration")).toContainText("3 核心启动 / 10 秒");
-    await expect(page.locator("#selected-passive-name")).toHaveText(FIGHTERS[fighterId].passiveName);
-    await expect(page.locator("#agility-value")).toHaveText(String(FIGHTERS[fighterId].stats.mobility));
+    await expect(page.locator("#selected-passive-name")).toHaveText(FIGHTERS[fighterId].primary.name);
+    await expect(page.locator("#agility-value")).toHaveText(FIGHTERS[fighterId].ratings.mobility);
     await expect(page.locator("#fighter-reference-image")).toHaveAttribute("src", `/fighters/${imageId}.webp`);
     await expect(page.locator("#fighter-reference-image")).toHaveAttribute("alt", FIGHTERS[fighterId].reference.alt);
     await expect(page.locator("#reference-credit")).toHaveText(FIGHTERS[fighterId].reference.credit);
@@ -106,7 +105,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   }
   expect(rigSignatures.size).toBe(9);
 
-  for (const mode of ["flight", "transform", "assault", "tactical"]) {
+  for (const mode of ["flight", "transform", "tactical"]) {
     await page.locator(`[data-preview="${mode}"]`).click({ force: true });
     await expect(page.locator(`[data-preview="${mode}"]`)).toHaveAttribute("aria-pressed", "true");
   }
@@ -123,10 +122,12 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await expect.poll(async () => (await snapshot(page)).visual3d).toBe(true);
   expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
   await expect(page.locator("#health-value")).toHaveText(`${FIGHTERS.f22.health} / ${FIGHTERS.f22.health}`);
+  expect((await snapshot(page)).weaponLevel).toBe(3);
   await expect.poll(async () => (await snapshot(page)).laserHeat).toBeGreaterThan(0);
+  await expect.poll(async () => (await snapshot(page)).laserBeams).toBeGreaterThanOrEqual(2);
   const opening = await snapshot(page);
   expect(opening.overdrive).toBe(0);
-  expect(opening.bullets).toBeLessThanOrEqual(18);
+  expect(opening.bullets).toBeLessThanOrEqual(36);
   expect(opening.enemyBullets).toBeLessThanOrEqual(12);
 
   const battlefield = await page.locator("#game-canvas").boundingBox();
@@ -210,9 +211,6 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
 
   if (testInfo.project.name === "mobile") await page.locator("#skill-button").click();
   else await page.mouse.click(battlefield.x + battlefield.width / 2, battlefield.y + battlefield.height * 0.72, { button: "left" });
-  await expect.poll(async () => (await snapshot(page)).toolModeIndex).toBe(1);
-
-  await page.keyboard.press("e");
   await expect.poll(async () => (await snapshot(page)).tacticalCooldown).toBeGreaterThan(0);
 
   if (testInfo.project.name === "mobile") await page.locator("#transform-button").click();
@@ -226,11 +224,6 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await page.evaluate(() => window.__mouseStrikeQa.setTransformElapsed(9.98));
   await expect.poll(async () => (await snapshot(page)).transformTarget).toBe(0);
 
-  if (testInfo.project.name === "mobile") await page.locator("#wingman-button").click();
-  else await page.keyboard.press("Space");
-  await expect.poll(async () => (await snapshot(page)).wingmanTimer).toBeGreaterThan(0);
-  await expect.poll(async () => (await snapshot(page)).wingmanCount).toBe(2);
-
   await page.evaluate(() => {
     window.__mouseStrikeQa.setTransformCores(2);
     window.__mouseStrikeQa.setOverdrive(0);
@@ -240,7 +233,7 @@ test("hangar and combat remain usable", async ({ page }, testInfo) => {
   await expect(page.locator("#module-choice")).toHaveCount(0);
   const bossReward = await snapshot(page);
   expect(bossReward.transformCores).toBe(3);
-  expect(bossReward.wingmanCooldown).toBe(0);
+  expect(bossReward.tacticalCooldown).toBe(0);
   expect(bossReward.overdrive).toBeGreaterThan(5.5);
 
   await page.screenshot({ path: `/tmp/mouse-strike-${testInfo.project.name}.png`, fullPage: true });
@@ -265,9 +258,52 @@ test("locally designed fighter is persisted in the hangar and enters combat", as
   await expect.poll(async () => (await snapshot(page)).running).toBe(true);
   await expect.poll(async () => (await snapshot(page)).fighterId).toBe("ai-custom");
   await expect.poll(async () => (await snapshot(page)).bulletTypes.seeker || 0).toBeGreaterThan(0);
-  expect((await snapshot(page)).passivePower).toBeGreaterThan(0);
-  await page.keyboard.press("e");
+  await page.evaluate(() => window.__mouseStrikeQa.fireTactical());
   await expect.poll(async () => (await snapshot(page)).tacticalCooldown).toBeGreaterThan(0);
+});
+
+test("left click clears the full screen and homing fire distributes targets", async ({ page }) => {
+  await page.goto("/?qa=1&renderer=canvas");
+  await page.locator('[data-fighter="j20"]').click();
+  await page.locator("#start-button").click();
+  await expect.poll(async () => (await snapshot(page)).running).toBe(true);
+
+  await page.evaluate(() => {
+    window.__mouseStrikeQa.clearHazards();
+    window.__mouseStrikeQa.clearStructures();
+    window.__mouseStrikeQa.setElapsed(40);
+    const width = window.innerWidth;
+    [
+      ["gunner", width * 0.08, 120],
+      ["elite", width * 0.34, 180],
+      ["bomber", width * 0.66, 140],
+      ["helicopter", width * 0.92, 210],
+    ].forEach(([type, x, y]) => {
+      window.__mouseStrikeQa.spawnEnemyType(type, { x, y, hp: 999, fireNow: true });
+    });
+  });
+  await expect.poll(async () => (await snapshot(page)).enemyBullets, { timeout: 3000 }).toBeGreaterThan(0);
+
+  const before = await snapshot(page);
+  const afterTactical = await page.evaluate(() => {
+    window.__mouseStrikeQa.setTacticalCooldown(0);
+    window.__mouseStrikeQa.fireTactical();
+    return window.__mouseStrikeQa.snapshot();
+  });
+  expect(afterTactical.enemyBullets).toBe(0);
+  expect(afterTactical.enemyDetails).toHaveLength(before.enemyDetails.length);
+  expect(afterTactical.enemyDetails.length).toBeGreaterThanOrEqual(4);
+  for (const enemy of afterTactical.enemyDetails) {
+    const previous = before.enemyDetails.find((candidate) => candidate.id === enemy.id);
+    expect(enemy.hp).toBeLessThan(previous.hp);
+  }
+
+  await expect.poll(async () => {
+    const locks = (await snapshot(page)).homingLocks
+      .filter((bullet) => bullet.tactical && bullet.targetId != null)
+      .map((bullet) => bullet.targetId);
+    return new Set(locks).size;
+  }).toBeGreaterThanOrEqual(4);
 });
 
 test("map structures, meteors, airdrops and full-screen laser are playable", async ({ page }) => {
@@ -350,7 +386,7 @@ test("map structures, meteors, airdrops and full-screen laser are playable", asy
     window.__mouseStrikeQa.grantSupply("transform");
     window.__mouseStrikeQa.setHealth(20);
     window.__mouseStrikeQa.grantSupply("defense");
-    window.__mouseStrikeQa.grantSupply("wingman");
+    window.__mouseStrikeQa.grantSupply("ally");
     window.__mouseStrikeQa.grantSupply("skyfire");
   });
   const supplyState = await snapshot(page);
@@ -381,66 +417,6 @@ test("map structures, meteors, airdrops and full-screen laser are playable", asy
   });
   await expect.poll(async () => (await snapshot(page)).screenLaser).not.toBeNull();
   await expect.poll(async () => (await snapshot(page)).screenEffect).toBe("screen-laser");
-});
-
-test("five mini missions explain their rules, wait for confirmation and grant visible rewards", async ({ page }, testInfo) => {
-  await page.goto("/?qa=1&renderer=canvas");
-  await page.locator("#start-button").click();
-  await expect.poll(async () => (await snapshot(page)).running).toBe(true);
-
-  const missions = [
-    ["coaster", "云端过山车", "累计留在轨道内 8.5 秒"],
-    ["rings", "连续穿环", "穿过 5 个能量环"],
-    ["carrier", "航母停靠", "稳定停靠 2 秒"],
-    ["mothership", "母舰破袭", "摧毁 3 个武器舱"],
-    ["chain", "连锁爆破", "制造至少 5 连爆"],
-  ];
-
-  for (const [missionId, title, objective] of missions) {
-    await page.evaluate((id) => window.__mouseStrikeQa.showMiniMission(id), missionId);
-    await expect(page.locator("#mission-briefing")).toBeVisible();
-    await expect(page.locator("#mission-event-title")).toHaveText(title);
-    await expect(page.locator("#mission-event-rule")).not.toBeEmpty();
-    await expect(page.locator("#mission-event-objective")).toContainText(objective);
-    await expect(page.locator("#mission-event-reward")).not.toBeEmpty();
-    await expect.poll(async () => (await snapshot(page)).missionPendingId).toBe(missionId);
-
-    await page.locator("#mission-enter").click();
-    await expect(page.locator("#mission-briefing")).toBeHidden();
-    await expect(page.locator("#mission-progress")).toBeVisible();
-    await expect.poll(async () => (await snapshot(page)).miniMission?.id).toBe(missionId);
-    await page.evaluate(() => window.__mouseStrikeQa.completeMiniMission());
-    await expect.poll(async () => (await snapshot(page)).miniMission).toBeNull();
-    await expect.poll(async () => (await snapshot(page)).completedMiniMissions).toContain(missionId);
-  }
-
-  const result = await snapshot(page);
-  expect(result.miniMissionResults).toHaveLength(5);
-  expect(result.miniMissionResults.every((item) => item.success)).toBe(true);
-  expect(result.transformCores).toBe(3);
-  expect(result.barrierTimer).toBeGreaterThan(0);
-  expect(result.overdrive).toBeGreaterThan(0);
-
-  await page.evaluate(() => window.__mouseStrikeQa.showMiniMission("rings"));
-  await expect(page.locator("#mission-briefing")).toBeVisible();
-  await page.locator("#mission-skip").click();
-  await expect(page.locator("#mission-briefing")).toBeHidden();
-  await expect.poll(async () => (await snapshot(page)).skippedMiniMissions).toContain("rings");
-
-  await page.screenshot({ path: `/tmp/mouse-strike-mini-missions-${testInfo.project.name}.png`, fullPage: true });
-});
-
-test("mini mission schedule announces the first challenge before it starts", async ({ page }) => {
-  await page.goto("/?qa=1&renderer=canvas&missions=auto");
-  await page.locator("#start-button").click();
-  await page.evaluate(() => window.__mouseStrikeQa.setElapsed(12));
-  await expect(page.locator("#mission-briefing")).toBeVisible();
-  await expect(page.locator("#mission-event-title")).toHaveText("云端过山车");
-  const pausedAt = await page.evaluate(() => window.__mouseStrikeQa.snapshot().miniMissionResults.length);
-  await page.waitForTimeout(250);
-  expect(await page.evaluate(() => window.__mouseStrikeQa.snapshot().miniMissionResults.length)).toBe(pausedAt);
-  await page.locator("#mission-skip").click();
-  await expect(page.locator("#mission-briefing")).toBeHidden();
 });
 
 test("X-10 requests its concept code for every launch", async ({ page }) => {
@@ -478,7 +454,7 @@ test("X-10 requests its concept code for every launch", async ({ page }) => {
 test("X-10 hero laser executes ordinary enemies and nuclear strike clears the battlefield", async ({ page }) => {
   await page.goto("/?qa=1&renderer=canvas");
   await page.locator('[data-fighter="hypersonic"]').click();
-  await expect(page.locator("#selected-strength")).toContainText("秒杀激光");
+  await expect(page.locator("#selected-strength")).toContainText("三角翼");
   await expect(page.locator("#selected-tactical-name")).toHaveText("天穹核裁决");
   await page.locator("#start-button").click();
   await page.locator("#unlock-password").fill("0000");
@@ -494,7 +470,6 @@ test("X-10 hero laser executes ordinary enemies and nuclear strike clears the ba
   await expect.poll(async () => (await snapshot(page)).enemies.includes("elite"), { timeout: 5000 }).toBe(false);
 
   await page.evaluate(() => {
-    window.__mouseStrikeQa.cycleToolMode();
     window.__mouseStrikeQa.clearHazards();
     window.__mouseStrikeQa.spawnEnemyType("bomber", { x: 110, y: 180, hp: 999 });
     window.__mouseStrikeQa.spawnEnemyType("helicopter", { x: 260, y: 210, hp: 999 });

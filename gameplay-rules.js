@@ -1,9 +1,9 @@
-import { getFighterProfile, getToolModes, getWingmanSpec } from "./fighter-profiles.js";
+import { getFighterProfile, getToolModes } from "./fighter-profiles.js";
 
 export const TRANSFORM_CORE_COST = 3;
 export const TRANSFORM_DURATION = 10;
 export const AIRDROP_ESCORT_DURATION = 6;
-export const PLAYER_PROJECTILE_LIMIT = 60;
+export const PLAYER_PROJECTILE_LIMIT = 96;
 export const PARTICLE_LIMIT = 110;
 
 export function airdropRewardSpec(choice, upgraded = false) {
@@ -45,21 +45,38 @@ export function projectileBudget(elapsed, options = {}) {
   const transformed = Boolean(options.transformed);
   const boss = Boolean(options.boss);
   return {
-    player: transformed ? 48 : phase === "identify" ? 18 : phase === "learn" ? 24 : 32,
+    player: transformed ? 84 : phase === "identify" ? 36 : phase === "learn" ? 48 : 64,
     allied: PLAYER_PROJECTILE_LIMIT,
     enemy: boss ? 42 : phase === "identify" ? 12 : phase === "learn" ? 18 : 28,
   };
 }
 
+export function playerFireSpec(elapsed, level = 3, combo = 1, transformed = false, fighterId = "") {
+  const safeLevel = Math.max(1, Math.min(5, Math.trunc(Number(level) || 1)));
+  const safeCombo = Math.max(1, Number(combo) || 1);
+  const currentPhase = combatPhase(elapsed);
+  const phaseBonus = currentPhase === "full" ? 2 : currentPhase === "expand" ? 1 : 0;
+  const levelBonus = safeLevel >= 5 ? 3 : safeLevel >= 3 ? 2 : safeLevel - 1;
+  const comboBonus = safeCombo >= 16 ? 2 : safeCombo >= 8 ? 1 : 0;
+  const transformBonus = transformed ? (fighterId === "hypersonic" ? 3 : 2) : 0;
+  return {
+    projectileBonus: levelBonus + phaseBonus + comboBonus + transformBonus,
+    phaseLimit: (currentPhase === "identify" ? 6 : currentPhase === "learn" ? 7 : currentPhase === "expand" ? 9 : 11) + transformBonus,
+    rateMultiplier: safeCombo >= 16 ? 0.72 : safeCombo >= 8 ? 0.84 : 1,
+    signatureEnabled: safeLevel >= 3 && Number(elapsed) >= 3,
+    signatureCadence: safeLevel >= 5 ? 2 : 3,
+  };
+}
+
 export function laserModeSpec(mode = {}) {
   return {
-    warmup: Math.max(0.08, Number(mode.warmup) || 0.25),
+    warmup: Math.max(0.06, (Number(mode.warmup) || 0.25) * 0.8),
     duration: Math.max(0.18, (Number(mode.duration) || 0.62) * 1.2),
-    heat: Math.max(1, Number(mode.heat) || 30),
-    coolRate: Math.max(1, Number(mode.coolRate) || 30),
+    heat: Math.max(1, (Number(mode.heat) || 30) * 0.82),
+    coolRate: Math.max(1, (Number(mode.coolRate) || 30) * 1.18),
     overheatCooldown: Math.max(0.4, Number(mode.overheatCooldown) || 1.2),
     width: Math.max(2.4, (Number(mode.width) || 5) * 1.15),
-    cycle: Math.max(0.55, Number(mode.cycle) || 1.2),
+    cycle: Math.max(0.42, (Number(mode.cycle) || 1.2) * 0.78),
   };
 }
 
@@ -86,16 +103,11 @@ export function transformSecondsRemaining(energyPercent) {
 
 export function toolModeSpec(fighterId, index = 0) {
   const modes = getToolModes(fighterId);
-  const normalized = ((Math.trunc(index) % modes.length) + modes.length) % modes.length;
-  return modes[normalized];
+  return modes[0];
 }
 
 export function tacticalSpec(fighterId) {
   return getFighterProfile(fighterId).tactical;
-}
-
-export function wingmanSpec(fighterId) {
-  return getWingmanSpec(fighterId);
 }
 
 export function formationPattern(index, width) {

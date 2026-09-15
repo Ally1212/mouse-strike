@@ -8,20 +8,19 @@ import {
   formationPattern,
   laserModeSpec,
   nextTransformProgress,
+  playerFireSpec,
   projectileBudget,
   tacticalSpec,
   toolModeSpec,
   TRANSFORM_CORE_COST,
   TRANSFORM_DURATION,
   transformSecondsRemaining,
-  wingmanSpec,
 } from "../gameplay-rules.js";
 import {
   FIGHTER_ORDER,
   FIGHTERS,
   getToolModes,
   getFighterProfile,
-  getWingmanSpec,
   setCustomFighter,
 } from "../fighter-profiles.js";
 import { CUSTOM_FIGHTER_ID, generateCustomFighter } from "../custom-fighter.js";
@@ -34,15 +33,6 @@ import {
   pointInsideStructure,
   resolveCircleFromStructure,
 } from "../battle-maps.js";
-import {
-  coasterMotion,
-  connectedChain,
-  isInsideCarrierDeck,
-  MINI_MISSION_ORDER,
-  nextMiniMission,
-  ringContainsPlayer,
-} from "../mini-missions.js";
-
 describe("transform rules", () => {
   test("requires and consumes three cores", () => {
     expect(TRANSFORM_CORE_COST).toBe(3);
@@ -66,51 +56,25 @@ describe("transform rules", () => {
     expect(assaultFireSpec(0.73, "f22")).toMatchObject({ active: true, rateMultiplier: 0.62, projectileBonus: 2, laserBeamBonus: 1 });
     expect(assaultFireSpec(1, "hypersonic")).toMatchObject({ active: true, rateMultiplier: 0.5, projectileBonus: 3, laserBeamBonus: 2 });
   });
-});
 
-describe("mini mission rules", () => {
-  test("introduces five missions in a readable sequence", () => {
-    expect(MINI_MISSION_ORDER).toEqual(["coaster", "rings", "carrier", "mothership", "chain"]);
-    expect(nextMiniMission(11, [])).toBeNull();
-    expect(nextMiniMission(12, [])?.id).toBe("coaster");
-    expect(nextMiniMission(70, ["coaster", "rings"])?.id).toBe("carrier");
-    expect(nextMiniMission(200, MINI_MISSION_ORDER)).toBeNull();
-    expect(nextMiniMission(200, [], true)).toBeNull();
-  });
-
-  test("carrier and ring goals use forgiving hit areas", () => {
-    const carrier = { x: 200, y: 600, deckWidth: 180, deckHeight: 80 };
-    expect(isInsideCarrierDeck({ x: 200, y: 600 }, carrier)).toBe(true);
-    expect(isInsideCarrierDeck({ x: 40, y: 600 }, carrier)).toBe(false);
-    expect(ringContainsPlayer({ x: 100, y: 100, radius: 16 }, { x: 100, y: 100, radius: 44 })).toBe(true);
-    expect(ringContainsPlayer({ x: 150, y: 100, radius: 16 }, { x: 100, y: 100, radius: 44 })).toBe(false);
-  });
-
-  test("chain explosions only propagate through nearby active nodes", () => {
-    const nodes = [
-      { id: "a", x: 0, y: 0, destroyed: false },
-      { id: "b", x: 90, y: 0, destroyed: false },
-      { id: "c", x: 180, y: 0, destroyed: false },
-      { id: "d", x: 420, y: 0, destroyed: false },
-    ];
-    expect(connectedChain(nodes, "a", 100)).toEqual(["a", "b", "c"]);
-    nodes[1].destroyed = true;
-    expect(connectedChain(nodes, "a", 100)).toEqual(["a"]);
-  });
-
-  test("coaster mission scripts distinct ride phases inside safe camera limits", () => {
-    const samples = [0.05, 0.25, 0.5, 0.72, 0.95].map(coasterMotion);
-    expect(samples.map((sample) => sample.segmentLabel)).toEqual([
-      "弹射起步",
-      "垂直急降",
-      "高速 S 弯",
-      "螺旋翻转",
-      "终点冲刺",
-    ]);
-    samples.forEach((sample) => {
-      expect(sample.center).toBeGreaterThanOrEqual(0.22);
-      expect(sample.center).toBeLessThanOrEqual(0.78);
-      expect(Math.abs(sample.roll)).toBeLessThanOrEqual(0.105);
+  test("level three starts with dense fire and combo adds a controlled barrage", () => {
+    expect(playerFireSpec(0, 3, 1, false, "f22")).toMatchObject({
+      projectileBonus: 2,
+      phaseLimit: 6,
+      rateMultiplier: 1,
+      signatureEnabled: false,
+      signatureCadence: 3,
+    });
+    expect(playerFireSpec(3, 3, 8, false, "f22")).toMatchObject({
+      projectileBonus: 3,
+      rateMultiplier: 0.84,
+      signatureEnabled: true,
+    });
+    expect(playerFireSpec(40, 5, 16, true, "hypersonic")).toMatchObject({
+      projectileBonus: 10,
+      phaseLimit: 14,
+      rateMultiplier: 0.72,
+      signatureCadence: 2,
     });
   });
 });
@@ -136,14 +100,14 @@ describe("combat configuration", () => {
     setCustomFighter(fighter);
 
     expect(fighter).toMatchObject({ id: CUSTOM_FIGHTER_ID, displayName: "苍穹游隼" });
-    expect(fighter.toolModes).toHaveLength(3);
-    expect(fighter.toolModes.map((mode) => mode.pattern)).toEqual(["seeker", "drone", "laser"]);
-    expect(fighter.tactical).toMatchObject({ projectile: "drone", count: 13 });
+    expect(fighter.toolModes).toEqual([fighter.primary]);
+    expect(fighter.primary).toMatchObject({ pattern: "seeker" });
+    expect(fighter.tactical).toMatchObject({ projectile: "drone", count: 13, cooldown: 8 });
+    expect(["light", "heavy", "wing"]).toContain(fighter.archetype);
     expect(fighter.health).toBeGreaterThanOrEqual(128);
     expect(fighter.health).toBeLessThanOrEqual(184);
     expect(getFighterProfile(CUSTOM_FIGHTER_ID)).toBe(fighter);
-    expect(getWingmanSpec(CUSTOM_FIGHTER_ID)).toMatchObject({ count: 3, projectile: "seeker" });
-    expect(toolModeSpec(CUSTOM_FIGHTER_ID, 4)).toMatchObject({ pattern: "drone" });
+    expect(toolModeSpec(CUSTOM_FIGHTER_ID, 4)).toBe(fighter.primary);
     expect(tacticalSpec(CUSTOM_FIGHTER_ID)).toEqual(fighter.tactical);
   });
 
@@ -165,30 +129,25 @@ describe("combat configuration", () => {
     expect(new Set(fighters.map((fighter) => fighter.health)).size).toBe(fighters.length);
   });
 
-  test("standard fighters keep three attack forms while X-10 owns ten", () => {
+  test("every fighter exposes one automatic primary weapon", () => {
     FIGHTER_ORDER.forEach((fighterId) => {
       const tools = getToolModes(fighterId);
-      const expectedCount = fighterId === "hypersonic" ? 10 : 3;
-      expect(tools).toHaveLength(expectedCount);
-      expect(new Set(tools.map((tool) => tool.id)).size).toBe(expectedCount);
-      expect(toolModeSpec(fighterId, expectedCount + 1)).toEqual(tools[1]);
+      expect(tools).toHaveLength(1);
+      expect(tools[0]).toBe(FIGHTERS[fighterId].primary);
+      expect(toolModeSpec(fighterId, 99)).toBe(tools[0]);
     });
-    expect(getToolModes("hypersonic").filter((tool) => tool.pattern === "laser")).toHaveLength(4);
     expect(getToolModes("hypersonic")[0]).toMatchObject({ id: "hyper-lance", laserStyle: "hero" });
     expect(getToolModes("hypersonic")[0].damage).toBeGreaterThan(10);
   });
 
-  test("every fighter has a mechanically configured laser form", () => {
-    FIGHTER_ORDER.forEach((fighterId) => {
-      const lasers = getToolModes(fighterId).filter((tool) => tool.pattern === "laser");
-      expect(lasers.length).toBeGreaterThanOrEqual(1);
-      lasers.forEach((laser) => {
-        const spec = laserModeSpec(laser);
-        expect(spec.warmup).toBeGreaterThan(0);
-        expect(spec.duration).toBeGreaterThan(0);
-        expect(spec.heat).toBeGreaterThan(0);
-        expect(spec.overheatCooldown).toBeGreaterThan(0);
-      });
+  test("fighters share four chassis, three ratings and an eight-second ultimate", () => {
+    const fighters = FIGHTER_ORDER.map((fighterId) => FIGHTERS[fighterId]);
+    expect(new Set(fighters.map((fighter) => fighter.archetype))).toEqual(new Set(["light", "heavy", "wing", "hero"]));
+    fighters.forEach((fighter) => {
+      expect(fighter.rig.chassis).toBe(fighter.archetype);
+      expect(fighter.tactical.cooldown).toBe(8);
+      expect(Object.keys(fighter.ratings)).toEqual(["mobility", "firepower", "defense"]);
+      expect(Object.values(fighter.ratings).every((value) => ["高", "中", "低"].includes(value))).toBe(true);
     });
   });
 
@@ -197,18 +156,9 @@ describe("combat configuration", () => {
     expect(combatPhase(8)).toBe("learn");
     expect(combatPhase(20)).toBe("expand");
     expect(combatPhase(40)).toBe("full");
-    expect(projectileBudget(0)).toMatchObject({ player: 18, enemy: 12, allied: 60 });
-    expect(projectileBudget(40)).toMatchObject({ player: 32, enemy: 28, allied: 60 });
-    expect(projectileBudget(40, { transformed: true, boss: true })).toMatchObject({ player: 48, enemy: 42 });
-  });
-
-  test("every fighter owns a distinct timed wingman squad", () => {
-    const squads = FIGHTER_ORDER.map((fighterId) => wingmanSpec(fighterId));
-    expect(squads.every((squad) => squad.count >= 2 && squad.count <= 3)).toBe(true);
-    expect(new Set(squads.map((squad) => squad.name)).size).toBe(FIGHTER_ORDER.length);
-    expect(new Set(squads.map((squad) => squad.duration)).size).toBe(FIGHTER_ORDER.length);
-    expect(new Set(squads.map((squad) => squad.formation)).size).toBe(FIGHTER_ORDER.length);
-    expect(wingmanSpec("unknown").name).toBe("猛禽猎杀队");
+    expect(projectileBudget(0)).toMatchObject({ player: 36, enemy: 12, allied: 96 });
+    expect(projectileBudget(40)).toMatchObject({ player: 64, enemy: 28, allied: 96 });
+    expect(projectileBudget(40, { transformed: true, boss: true })).toMatchObject({ player: 84, enemy: 42 });
   });
 
   test("formations stay inside the battlefield", () => {

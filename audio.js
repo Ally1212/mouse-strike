@@ -737,53 +737,6 @@
       ]);
     }
 
-    missionAlert() {
-      this.sequence([
-        { name: "warning", delay: 0, pitch: 1.08, volume: 0.76 },
-        { name: "select", delay: 180, pitch: 1.34, volume: 0.7 },
-      ]);
-    }
-
-    missionStart(type) {
-      const pitch = { coaster: 1.28, rings: 1.42, carrier: 0.88, mothership: 0.72, chain: 1.08 }[type] || 1;
-      this.play(type === "mothership" ? "bossPhase" : "launch", { pitch, volume: 0.88, priority: true });
-    }
-
-    coasterCue(segment = 0) {
-      const pitch = [1.06, 0.78, 1.18, 1.32, 1.48][Math.max(0, Math.min(4, segment))];
-      this.play(segment === 1 ? "mazeAlert" : "launch", { pitch, volume: 0.72, priority: true });
-    }
-
-    coasterBoost(count = 1) {
-      this.play("rush", { pitch: 1 + Math.min(6, count) * 0.08, throttle: 180, volume: 0.7 });
-    }
-
-    missionResult(success) {
-      if (!success) {
-        this.play("denied", { pitch: 0.82, volume: 0.72, priority: true });
-        return;
-      }
-      this.sequence([
-        { name: "upgrade", delay: 0, pitch: 1.18, volume: 0.86 },
-        { name: "overdrive", delay: 150, pitch: 1.26, volume: 0.82 },
-      ]);
-    }
-
-    ringPass(count = 1) {
-      this.play("pickup", { pitch: 0.96 + Math.min(5, count) * 0.12, throttle: 45, volume: 0.72 });
-    }
-
-    carrierDock() {
-      this.sequence([
-        { name: "repair", delay: 0, pitch: 0.94, volume: 0.82 },
-        { name: "launch", delay: 240, pitch: 1.22, volume: 0.88 },
-      ]);
-    }
-
-    chainBlast(count = 1) {
-      this.play("bossKill", { pitch: Math.max(0.72, 1.1 - count * 0.035), volume: Math.min(1, 0.68 + count * 0.035), priority: true });
-    }
-
     passive(type) {
       const preset = { graze: "graze", mark: "mark", resonance: "resonance", revenge: "revenge" }[type];
       if (!preset) return;

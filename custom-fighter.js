@@ -31,10 +31,6 @@ const BLUEPRINTS = [
       { name: "聚焦脉冲", pattern: "pulse", count: 4, spread: 0.07, speed: 980, damage: 1.22, rate: 0.72 },
       { name: "天穹轨束", pattern: "rail", count: 2, spread: 0.035, speed: 1320, damage: 2.05, rate: 1.04 },
     ],
-    passiveName: "折光瞄准",
-    passive: "光束与轨束穿透强化，命中精英目标时获得额外伤害。",
-    passiveConfig: { power: 0.24, pierce: 1, damageMultiplier: 1.08 },
-    wingman: { name: "折光僚机队", count: 2, duration: 10.8, cooldown: 18, formation: "lance", projectile: "laser", rate: 0.22, speed: 1300, damage: 1.45 },
   },
   {
     id: "siege",
@@ -50,10 +46,6 @@ const BLUEPRINTS = [
       { name: "破甲轨炮", pattern: "rail", count: 2, spread: 0.04, speed: 1120, damage: 2.15, rate: 1.04 },
       { name: "熔核脉冲", pattern: "laser", count: 1, damage: 6.4, rate: 0.92, warmup: 0.24, duration: 0.62, heat: 35, coolRate: 28, overheatCooldown: 1.3, width: 5.8, cycle: 1.24, laserStyle: "pierce" },
     ],
-    passiveName: "熔核装甲",
-    passive: "强化机体耐久与爆炸范围，强袭状态获得更高护盾窗口。",
-    passiveConfig: { power: 0.24, guard: 0.22, heavyRange: 1.22 },
-    wingman: { name: "熔核炮艇队", count: 2, duration: 12.6, cooldown: 21, formation: "bulwark", projectile: "heavy", rate: 0.46, speed: 610, damage: 2.05 },
   },
   {
     id: "swarm",
@@ -69,10 +61,6 @@ const BLUEPRINTS = [
       { name: "协同无人翼", pattern: "drone", count: 4, spread: 0.11, speed: 790, damage: 1.22, rate: 0.78 },
       { name: "指挥脉冲", pattern: "laser", count: 2, spread: 0.04, damage: 5.4, rate: 0.86, warmup: 0.18, duration: 0.5, heat: 25, coolRate: 37, overheatCooldown: 0.9, width: 4.4, cycle: 0.96, laserStyle: "twin" },
     ],
-    passiveName: "自律火控",
-    passive: "增加无人机与战术弹幕数量，追踪武器优先锁定精英目标。",
-    passiveConfig: { power: 0.22, drones: 1, tacticalProjectiles: 2 },
-    wingman: { name: "自律蜂群队", count: 3, duration: 12.4, cooldown: 19, formation: "crown", projectile: "seeker", rate: 0.26, speed: 820, damage: 1.26 },
   },
   {
     id: "skirmisher",
@@ -88,10 +76,6 @@ const BLUEPRINTS = [
       { name: "闪击脉冲", pattern: "pulse", count: 5, spread: 0.1, speed: 1010, damage: 1.05, rate: 0.68 },
       { name: "回声激光", pattern: "laser", count: 2, spread: 0.065, damage: 5.1, rate: 0.76, warmup: 0.16, duration: 0.48, heat: 24, coolRate: 40, overheatCooldown: 0.84, width: 4.1, cycle: 0.9, laserStyle: "twin" },
     ],
-    passiveName: "矢量超频",
-    passive: "提高射速并强化波形弹道范围，擦弹时更快进入超频。",
-    passiveConfig: { power: 0.25, fireRate: 1.1, waveRange: 1.18 },
-    wingman: { name: "风切僚机队", count: 3, duration: 9.6, cooldown: 16, formation: "arrow", projectile: "wave", rate: 0.24, speed: 820, damage: 1.16 },
   },
 ];
 
@@ -118,12 +102,18 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
   const transform = 80 + ((hash >>> 15) % 16);
   const tactical = 82 + ((hash >>> 20) % 15);
   const shapeScale = 0.9 + ((hash >>> 25) % 12) / 100;
-  const toolModes = blueprint.modes.map((mode, index) => ({
-    ...mode,
-    id: `ai-${blueprint.profile}-${index + 1}`,
-    name: aiText(design.modeNames?.[index], mode.name, 24),
-    damage: Number((mode.damage * (0.96 + ((hash >>> (index * 3)) % 9) / 100)).toFixed(2)),
-  }));
+  const basePrimary = blueprint.modes[0];
+  const primary = {
+    ...basePrimary,
+    id: `ai-${blueprint.profile}-primary`,
+    name: aiText(design.modeNames?.[0], basePrimary.name, 24),
+    damage: Number((basePrimary.damage * (0.96 + (hash % 9) / 100)).toFixed(2)),
+  };
+  const archetype = blueprint.id === "siege"
+    ? "heavy"
+    : blueprint.id === "swarm" ? "wing" : "light";
+  const rating = (value) => value >= 90 ? "高" : value >= 72 ? "中" : "低";
+  const ultimate = { ...blueprint.tactical, cooldown: 8, name: aiText(design.tacticalName, blueprint.tactical.name, 24) };
 
   return {
     id: CUSTOM_FIGHTER_ID,
@@ -134,9 +124,7 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
     displayName: designation,
     callsign: aiText(design.callsign, "生成作战单元", 20),
     role: aiText(design.role, blueprint.role, 32),
-    passiveName: aiText(design.passiveName, blueprint.passiveName, 20),
-    passive: aiText(design.passive, blueprint.passive, 86),
-    passiveConfig: blueprint.passiveConfig,
+    archetype,
     strength: `根据“${concept}”在本地生成的战术模块，已完成战斗平衡校验。`,
     tradeoff: "技能参数受战斗平衡限制；重新生成会替换当前原型机。",
     special: aiText(design.special, `${blueprint.tactical.name}：清除近身敌弹，并以生成的专属弹道压制目标区域。`, 110),
@@ -150,6 +138,7 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
     ambient: blueprint.ambient,
     reference: { src: "fighters/faxx.webp", alt: `${designation} 的程序化战机预览`, credit: "本地作战设计器生成", url: "" },
     stats: { mobility, firepower, armor, transform, tactical },
+    ratings: { mobility: rating(mobility), firepower: rating(firepower), defense: rating(armor) },
     agility: Math.round(mobility / 20),
     firepower: Math.round(firepower / 20),
     armor: Math.round(armor / 20),
@@ -158,16 +147,17 @@ export function generateCustomFighter({ name, brief, design = {} } = {}) {
     followBase: 0.00035,
     health: 128 + Math.round(armor * 0.58),
     pickupRadius: 118 + Math.round(mobility * 0.3),
-    transformDuration: 1.05,
+    transformDuration: 0.9,
     restoreDuration: 0.72,
-    tactical: { ...blueprint.tactical, name: aiText(design.tacticalName, blueprint.tactical.name, 24) },
-    toolModes,
-    wingman: { ...blueprint.wingman, name: aiText(design.wingmanName, blueprint.wingman.name, 24) },
+    tactical: ultimate,
+    ultimate,
+    primary,
+    toolModes: [primary],
     shape: { canard: 8, twinTail: true, nose: Math.round(33 * shapeScale), body: Math.round(29 * shapeScale), wing: Math.round(34 * shapeScale), wingY: 0, rearWingY: 17, tail: Math.round(15 * shapeScale), tailless: false },
-    rig: { profile: blueprint.profile, assaultForm: `ai-${blueprint.profile}`, engineCount: 2, wingSweep: 0.5, wingTaper: 0.62, tailCant: 0.4, bodyTaper: 0.4, body: [18, 62, 9], wing: [43, 20, 4], engines: 9, shoulders: [18, 12, 8], arms: 25, cameraScale: 0.94, phases: { armor: [0.04, 0.22], chest: [0.15, 0.42], wings: [0.16, 0.6], legs: [0.34, 0.7], arms: [0.46, 0.84], lock: [0.74, 1] } },
+    rig: { profile: blueprint.profile, chassis: archetype, assaultForm: `ai-${blueprint.profile}`, engineCount: 2, wingSweep: 0.5, wingTaper: 0.62, tailCant: 0.4, bodyTaper: 0.4, body: [18, 62, 9], wing: [43, 20, 4], engines: 9, shoulders: [18, 12, 8], arms: 25, cameraScale: 0.94, phases: { armor: [0, 0.28], chest: [0, 0.28], wings: [0.22, 0.64], legs: [0.22, 0.64], arms: [0.48, 0.86], lock: [0.7, 1] } },
   };
 }
 
 export function isCustomFighter(profile) {
-  return Boolean(profile && profile.id === CUSTOM_FIGHTER_ID && Array.isArray(profile.toolModes) && profile.toolModes.length >= 3);
+  return Boolean(profile && profile.id === CUSTOM_FIGHTER_ID && profile.primary && Array.isArray(profile.toolModes) && profile.toolModes.length === 1);
 }

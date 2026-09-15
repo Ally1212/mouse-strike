@@ -1630,7 +1630,7 @@ kbd {
   }
 }
 
-/* Confirmed, short-form battle missions. */
+/* Paused tactical-airdrop decision. */
 .mission-event {
   position: absolute;
   z-index: 30;
@@ -1647,7 +1647,6 @@ kbd {
 }
 
 .mission-event[hidden],
-.mission-progress[hidden],
 .airdrop-progress[hidden],
 .airdrop-choice[hidden] {
   display: none;
@@ -1686,131 +1685,6 @@ kbd {
   color: var(--paper-text-soft);
   font-size: clamp(14px, 2vw, 17px);
   line-height: 1.55;
-}
-
-.mission-event dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 20px 0;
-}
-
-.mission-event dl div {
-  padding: 11px 12px;
-  border: 1px solid var(--paper-line);
-  background: var(--paper-muted);
-}
-
-.mission-event dt {
-  color: var(--paper-red);
-  font-family: var(--paper-mono);
-  font-size: 9px;
-  font-weight: 900;
-}
-
-.mission-event dd {
-  margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.mission-event__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
-
-.mission-event__actions button {
-  min-height: 48px;
-  padding: 0 18px;
-  border: 2px solid var(--paper-ink);
-  border-radius: 2px;
-  font-family: var(--paper-body);
-  font-size: 14px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-#mission-enter {
-  color: var(--paper-surface);
-  background: var(--paper-red);
-  box-shadow: 4px 4px 0 var(--paper-ink);
-}
-
-#mission-skip {
-  color: var(--paper-ink);
-  background: var(--paper-surface);
-}
-
-.mission-progress {
-  position: absolute;
-  z-index: 16;
-  top: max(112px, calc(env(safe-area-inset-top) + 92px));
-  left: 50%;
-  width: min(440px, calc(100% - 44px));
-  padding: 9px 11px;
-  border: 2px solid var(--paper-ink);
-  color: var(--paper-ink);
-  background: rgba(255, 250, 240, 0.95);
-  box-shadow: 5px 5px 0 var(--paper-ink);
-  pointer-events: none;
-  transform: translateX(-50%);
-}
-
-.mission-progress > div:first-child,
-.mission-progress__bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.mission-progress span,
-.mission-progress em {
-  color: var(--paper-red);
-  font-family: var(--paper-mono);
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 900;
-}
-
-.mission-progress strong {
-  overflow: hidden;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mission-progress p {
-  margin: 5px 0 7px;
-  color: var(--paper-text-soft);
-  font-size: 11px;
-}
-
-.mission-progress__bottom i {
-  flex: 1;
-  height: 7px;
-  overflow: hidden;
-  border: 1px solid var(--paper-ink);
-  background: var(--paper-muted);
-}
-
-.mission-progress__bottom b {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: var(--paper-red);
-  transform-origin: left center;
-}
-
-.game-screen.is-mission-paused::after {
-  position: absolute;
-  z-index: 24;
-  inset: 0;
-  content: "";
-  background: rgba(21, 18, 15, 0.42);
-  backdrop-filter: blur(3px);
 }
 
 .airdrop-choice {
@@ -1987,20 +1861,6 @@ kbd {
   .mission-event {
     padding: 20px;
     box-shadow: 7px 7px 0 var(--paper-ink);
-  }
-
-  .mission-event dl {
-    grid-template-columns: 1fr;
-    margin: 15px 0;
-  }
-
-  .mission-event__actions {
-    grid-template-columns: 1fr;
-  }
-
-  .mission-progress {
-    top: max(120px, calc(env(safe-area-inset-top) + 102px));
-    width: calc(100% - 28px);
   }
 
   .airdrop-choice__grid {

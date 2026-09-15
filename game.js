@@ -45,23 +45,14 @@ import {
   laserModeSpec,
   nextTransformProgress,
   PARTICLE_LIMIT,
+  playerFireSpec,
   projectileBudget,
   tacticalSpec,
   toolModeSpec,
   TRANSFORM_CORE_COST,
   TRANSFORM_DURATION,
   transformSecondsRemaining,
-  wingmanSpec,
 } from "./gameplay-rules.js";
-import {
-  coasterMotion,
-  connectedChain,
-  isInsideCarrierDeck,
-  MINI_MISSIONS,
-  nextMiniMission,
-  ringContainsPlayer,
-} from "./mini-missions.js";
-
 (() => {
   "use strict";
 
@@ -114,17 +105,12 @@ import {
   const selectedPassiveName = document.querySelector("#selected-passive-name");
   const selectedPassive = document.querySelector("#selected-passive");
   const selectedStrength = document.querySelector("#selected-strength");
-  const selectedTradeoff = document.querySelector("#selected-tradeoff");
   const agilityStat = document.querySelector("#agility-stat");
   const firepowerStat = document.querySelector("#firepower-stat");
   const armorStat = document.querySelector("#armor-stat");
-  const transformStat = document.querySelector("#transform-stat");
-  const tacticalStat = document.querySelector("#tactical-stat");
   const agilityValue = document.querySelector("#agility-value");
   const firepowerValue = document.querySelector("#firepower-value");
   const armorValue = document.querySelector("#armor-value");
-  const transformValue = document.querySelector("#transform-value");
-  const tacticalValueStat = document.querySelector("#tactical-value-stat");
   const previewStatus = document.querySelector("#preview-status");
   const previewButtons = [...document.querySelectorAll("[data-preview]")];
   const startButtonLabel = document.querySelector("#start-button-label");
@@ -151,20 +137,6 @@ import {
   const waveMessage = document.querySelector("#wave-message");
   const transformReady = document.querySelector("#transform-ready");
   const upgradeMessage = document.querySelector("#upgrade-message");
-  const missionBriefing = document.querySelector("#mission-briefing");
-  const missionEventTag = document.querySelector("#mission-event-tag");
-  const missionEventTitle = document.querySelector("#mission-event-title");
-  const missionEventRule = document.querySelector("#mission-event-rule");
-  const missionEventObjective = document.querySelector("#mission-event-objective");
-  const missionEventReward = document.querySelector("#mission-event-reward");
-  const missionEnter = document.querySelector("#mission-enter");
-  const missionSkip = document.querySelector("#mission-skip");
-  const missionProgress = document.querySelector("#mission-progress");
-  const missionProgressTag = document.querySelector("#mission-progress-tag");
-  const missionProgressTitle = document.querySelector("#mission-progress-title");
-  const missionProgressRule = document.querySelector("#mission-progress-rule");
-  const missionProgressBar = document.querySelector("#mission-progress-bar");
-  const missionProgressValue = document.querySelector("#mission-progress-value");
   const airdropChoice = document.querySelector("#airdrop-choice");
   const airdropChoiceTag = document.querySelector("#airdrop-choice-tag");
   const airdropChoiceTitle = document.querySelector("#airdrop-choice-title");
@@ -187,19 +159,11 @@ import {
   const formEnergyLabel = document.querySelector("#form-energy-label");
   const skillValue = document.querySelector("#skill-value");
   const skillCooldown = document.querySelector("#skill-cooldown");
-  const wingmanValue = document.querySelector("#wingman-value");
-  const wingmanCooldown = document.querySelector("#wingman-cooldown");
-  const passiveStatus = document.querySelector("#passive-status");
   const skillAbility = document.querySelector(".ability--skill");
-  const wingmanAbility = document.querySelector(".ability--wingman");
   const skillButton = document.querySelector("#skill-button");
   const transformButton = document.querySelector("#transform-button");
-  const wingmanButton = document.querySelector("#wingman-button");
   let visuals = null;
   let pendingHypersonicLaunch = false;
-  const pageParams = new URLSearchParams(window.location.search);
-  const autoMiniMissions = !pageParams.has("qa") || pageParams.get("missions") === "auto";
-
   const HYPERSONIC_CONCEPT_CODE = "0000";
 
   function assetUrl(path) {
@@ -241,11 +205,11 @@ import {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const WEAPONS = [
-    { level: 1, name: "基础火控", threshold: 2, rate: 0.155 },
-    { level: 2, name: "双联增幅", threshold: 3, rate: 0.145 },
-    { level: 3, name: "战术火控", threshold: 4, rate: 0.16 },
-    { level: 4, name: "协同增幅", threshold: 5, rate: 0.15 },
-    { level: 5, name: "终极矩阵", threshold: 0, rate: 0.13 },
+    { level: 1, name: "基础火控", threshold: 2, rate: 0.145 },
+    { level: 2, name: "双联增幅", threshold: 3, rate: 0.13 },
+    { level: 3, name: "战术火控", threshold: 4, rate: 0.115 },
+    { level: 4, name: "协同增幅", threshold: 5, rate: 0.105 },
+    { level: 5, name: "终极矩阵", threshold: 0, rate: 0.09 },
   ];
 
   const ENEMY_CONFIGS = {
@@ -315,14 +279,7 @@ import {
     transformCores: 0,
     coreDropCooldown: 3.5,
     transformElapsed: 0,
-    assaultFormIndex: 0,
-    toolModeIndex: 0,
     tacticalCooldown: 0,
-    wingmanTimer: 0,
-    wingmanCooldown: 0,
-    wingmanFireTimer: 0,
-    wingmanUses: 0,
-    wingmanPositions: [],
     formationTimer: 18,
     formationIndex: 0,
     mapId: loadSelectedMapId(),
@@ -351,15 +308,6 @@ import {
     nuclearDetonations: 0,
     firepowerTimer: 0,
     meteorPierceTimer: 0,
-    damageMultiplier: 1,
-    fireRateMultiplier: 1,
-    tacticalCooldownMultiplier: 1,
-    transformGuardBonus: 0,
-    passivePower: 0,
-    pierceBonus: 0,
-    waveRangeMultiplier: 1,
-    tacticalProjectileBonus: 0,
-    droneBonus: 0,
     assaultDamageMultiplier: 1,
     grazeCount: 0,
     overclockStacks: 0,
@@ -368,7 +316,6 @@ import {
     railChain: 0,
     railChainTimer: 0,
     overclockTimer: 0,
-    heavyRangeMultiplier: 1,
     nextEnemyId: 1,
     bossKills: 0,
     skillUses: 0,
@@ -377,11 +324,6 @@ import {
     screenEffect: null,
     hitStop: 0,
     speedLines: 0,
-    missionPendingId: null,
-    miniMission: null,
-    completedMiniMissions: [],
-    skippedMiniMissions: [],
-    miniMissionResults: [],
     weaponLevel: 1,
     weaponEnergy: 0,
     trajectoryLevel: 0,
@@ -593,14 +535,13 @@ import {
     selectedRole.textContent = fighter.role;
     selectedName.textContent = fighter.displayName || fighter.name;
     selectedTransformName.textContent = fighter.transformation.label;
-    selectedTransformDuration.textContent = `${TRANSFORM_CORE_COST} 核心启动 / ${TRANSFORM_DURATION} 秒${fighter.id === "hypersonic" ? " · 四阶段" : fighter.id === CUSTOM_FIGHTER_ID ? " · 本地生成" : ""}`;
+    selectedTransformDuration.textContent = `${TRANSFORM_CORE_COST} 核心启动 / ${TRANSFORM_DURATION} 秒${fighter.id === CUSTOM_FIGHTER_ID ? " · 本地生成" : ""}`;
     selectedTransformSummary.textContent = fighter.transformation.summary;
     selectedTacticalName.textContent = fighter.tactical.name;
     selectedSpecial.textContent = fighter.special;
-    selectedPassiveName.textContent = fighter.passiveName;
-    selectedPassive.textContent = fighter.passive;
-    selectedStrength.textContent = fighter.strength;
-    selectedTradeoff.textContent = fighter.tradeoff;
+    selectedPassiveName.textContent = fighter.primary.name;
+    selectedPassive.textContent = "自动持续射击，移动时无需切换武器。";
+    selectedStrength.textContent = fighter.transformation.summary;
     fighterReferenceImage.src = assetUrl(fighter.reference.src);
     fighterReferenceImage.alt = fighter.reference.alt;
     if (fighter.reference.url) {
@@ -614,14 +555,9 @@ import {
     agilityStat.style.width = `${fighter.stats.mobility}%`;
     firepowerStat.style.width = `${fighter.stats.firepower}%`;
     armorStat.style.width = `${fighter.stats.armor}%`;
-    transformStat.style.width = `${fighter.stats.transform}%`;
-    tacticalStat.style.width = `${fighter.stats.tactical}%`;
-    agilityValue.textContent = fighter.stats.mobility;
-    firepowerValue.textContent = fighter.stats.firepower;
-    armorValue.textContent = fighter.stats.armor;
-    transformValue.textContent = fighter.stats.transform;
-    tacticalValueStat.textContent = fighter.stats.tactical;
-    state.toolModeIndex = 0;
+    agilityValue.textContent = fighter.ratings.mobility;
+    firepowerValue.textContent = fighter.ratings.firepower;
+    armorValue.textContent = fighter.ratings.defense;
     visuals?.setToolMode?.(0);
     startButtonLabel.textContent = "驾驶出击";
     const selectedIndex = fighterOptions.findIndex((option) => option.dataset.fighter === fighterId);
@@ -715,7 +651,7 @@ import {
   }
 
   function setPreviewMode(mode) {
-    const validMode = ["flight", "transform", "assault", "tactical"].includes(mode) ? mode : "flight";
+    const validMode = ["flight", "transform", "tactical"].includes(mode) ? mode : "flight";
     previewButtons.forEach((button) => {
       const selected = button.dataset.preview === validMode;
       button.classList.toggle("is-active", selected);
@@ -725,7 +661,6 @@ import {
     const labels = {
       flight: `${fighter.shortName} / 飞行形态`,
       transform: `${fighter.shortName} / 变形演示`,
-      assault: fighter.transformation.label,
       tactical: fighter.tactical.name,
     };
     previewStatus.textContent = labels[validMode];
@@ -808,14 +743,7 @@ import {
     state.transformCores = 0;
     state.coreDropCooldown = 3.5;
     state.transformElapsed = 0;
-    state.assaultFormIndex = 0;
-    state.toolModeIndex = 0;
     state.tacticalCooldown = 0;
-    state.wingmanTimer = 0;
-    state.wingmanCooldown = 0;
-    state.wingmanFireTimer = 0;
-    state.wingmanUses = 0;
-    state.wingmanPositions = [];
     state.formationTimer = 18;
     state.formationIndex = 0;
     state.hazardTimer = 9;
@@ -843,15 +771,6 @@ import {
     state.nuclearDetonations = 0;
     state.firepowerTimer = 0;
     state.meteorPierceTimer = 0;
-    state.damageMultiplier = 1;
-    state.fireRateMultiplier = 1;
-    state.tacticalCooldownMultiplier = 1;
-    state.transformGuardBonus = 0;
-    state.passivePower = 0;
-    state.pierceBonus = 0;
-    state.waveRangeMultiplier = 1;
-    state.tacticalProjectileBonus = 0;
-    state.droneBonus = 0;
     state.assaultDamageMultiplier = 1;
     state.grazeCount = 0;
     state.overclockStacks = 0;
@@ -860,19 +779,6 @@ import {
     state.railChain = 0;
     state.railChainTimer = 0;
     state.overclockTimer = 0;
-    state.heavyRangeMultiplier = 1;
-    if (fighter.id === CUSTOM_FIGHTER_ID && fighter.passiveConfig) {
-      const passive = fighter.passiveConfig;
-      state.passivePower = passive.power || 0;
-      state.pierceBonus = passive.pierce || 0;
-      state.droneBonus = passive.drones || 0;
-      state.tacticalProjectileBonus = passive.tacticalProjectiles || 0;
-      state.transformGuardBonus = passive.guard || 0;
-      state.heavyRangeMultiplier = passive.heavyRange || 1;
-      state.waveRangeMultiplier = passive.waveRange || 1;
-      state.damageMultiplier = passive.damageMultiplier || 1;
-      state.fireRateMultiplier = passive.fireRate || 1;
-    }
     state.nextEnemyId = 1;
     state.bossKills = 0;
     state.skillUses = 0;
@@ -886,11 +792,6 @@ import {
     state.screenEffect = null;
     state.hitStop = 0;
     state.speedLines = 0;
-    state.missionPendingId = null;
-    state.miniMission = null;
-    state.completedMiniMissions = [];
-    state.skippedMiniMissions = [];
-    state.miniMissionResults = [];
     state.bullets = [];
     state.enemyBullets = [];
     state.enemies = [];
@@ -906,14 +807,12 @@ import {
     state.pointer.active = false;
     gameOverPanel.hidden = true;
     bossHud.hidden = true;
-    missionBriefing.hidden = true;
-    missionProgress.hidden = true;
     airdropChoice.hidden = true;
     airdropProgress.hidden = true;
-    gameScreen.classList.remove("is-mission-paused");
     gameScreen.classList.remove("is-airdrop-paused");
     updateHud();
     showWave(`${getBattleMap(state.mapId).name} // 作战开始`);
+    showUpgrade("自动全屏锁敌 · 左键全屏必杀 · 右键变身", "等级 3 火控上线");
   }
 
   async function startGame(options = {}) {
@@ -958,15 +857,10 @@ import {
 
   async function exitGame() {
     state.running = false;
-    state.missionPendingId = null;
-    state.miniMission = null;
     state.airdropDecision = null;
     cancelAnimationFrame(state.animationFrame);
-    missionBriefing.hidden = true;
-    missionProgress.hidden = true;
     airdropChoice.hidden = true;
     airdropProgress.hidden = true;
-    gameScreen.classList.remove("is-mission-paused");
     gameScreen.classList.remove("is-airdrop-paused");
     gameScreen.hidden = true;
     menuScreen.hidden = false;
@@ -1010,6 +904,15 @@ import {
     return cleared;
   }
 
+  function clearAllEnemyBullets() {
+    const cleared = state.enemyBullets.length;
+    state.enemyBullets.slice(0, 24).forEach((bullet) => {
+      burst(bullet.x, bullet.y, getFighter().accent, 2, 70, 0.22);
+    });
+    state.enemyBullets = [];
+    return cleared;
+  }
+
   function triggerScreenEffect(type, color, intensity = 1, duration = 0.55, hitStop = 0) {
     state.screenEffect = { type, color, intensity, life: duration, maxLife: duration };
     state.speedLines = Math.max(state.speedLines, reducedMotion ? 0 : intensity);
@@ -1039,22 +942,6 @@ import {
     return true;
   }
 
-  function cycleToolMode() {
-    if (!state.running || state.ended) return;
-    const modes = getFighter().toolModes;
-    state.toolModeIndex = (state.toolModeIndex + 1) % modes.length;
-    state.laserWarmup = 0;
-    state.pendingLaser = null;
-    const mode = toolModeSpec(state.fighterId, state.toolModeIndex);
-    visuals?.setToolMode?.(state.toolModeIndex);
-    state.fireTimer = Math.min(state.fireTimer, 0.04);
-    state.shake = 4;
-    audio?.toolSwitch?.(mode.pattern, state.fighterId);
-    showUpgrade(`${mode.name} // ${state.toolModeIndex + 1} / ${modes.length}`, "攻击形态切换");
-    updateWeaponHud();
-    updateAbilityHud();
-  }
-
   function launchNuclearStrike(spec, assault) {
     if (state.nuclearStrike) return false;
     const priorityTarget = state.enemies.find((enemy) => enemy.type === "boss")
@@ -1079,7 +966,7 @@ import {
       detonated: false,
       assault,
     };
-    state.tacticalCooldown = spec.cooldown * state.tacticalCooldownMultiplier * (assault ? 0.82 : 1);
+    state.tacticalCooldown = spec.cooldown;
     state.skillUses += 1;
     state.player.invulnerable = Math.max(state.player.invulnerable, 0.8);
     state.shake = 10;
@@ -1160,14 +1047,13 @@ import {
     state.transformPulse = 1.45;
     state.player.invulnerable = Math.max(
       state.player.invulnerable,
-      entering ? 0.68 + state.transformGuardBonus : 0.34,
+      entering ? 0.68 : 0.34,
     );
     state.shake = entering ? 14 : 8;
     if (entering) {
       state.transformCores -= TRANSFORM_CORE_COST;
       state.transformElapsed = 0;
       state.transformEnergy = 100;
-      state.assaultFormIndex = 0;
       const fireBoost = assaultFireSpec(1, fighter.id);
       const rateIncrease = Math.round((1 / fireBoost.rateMultiplier - 1) * 100);
       const cleared = clearEnemyBulletsAround(state.player.x, state.player.y, 150);
@@ -1196,7 +1082,7 @@ import {
     const fighter = getFighter();
     const spec = tacticalSpec(fighter.id);
     const assault = state.transformProgress > 0.72;
-    const mode = toolModeSpec(state.fighterId, state.toolModeIndex);
+    const mode = toolModeSpec(state.fighterId);
     if (assault && mode.pattern === "laser" && startScreenLaser()) {
       state.tacticalCooldown = Math.max(spec.cooldown * 0.9, state.screenLaserCooldown);
       state.skillUses += 1;
@@ -1206,19 +1092,18 @@ import {
     if (spec.projectile === "nuclear" && launchNuclearStrike(spec, assault)) return;
     const fireBoost = assaultFireSpec(state.transformProgress, fighter.id);
     const revenge = fighter.id === "su57" ? state.revengeCharge : 0;
-    const projectileCount = spec.count + state.tacticalProjectileBonus + Math.floor(revenge / 30)
+    const projectileCount = spec.count + Math.floor(revenge / 30)
       + fireBoost.projectileBonus * 2;
     const x = state.player.x;
     const y = state.player.y - 24;
-    const cleared = clearEnemyBulletsAround(x, y, assault ? 250 : 205);
-    const blastRadius = assault ? 245 : 190;
-    const blastDamage = (assault ? 11 : 7) * fighter.damage * state.damageMultiplier
+    const cleared = clearAllEnemyBullets();
+    const blastDamage = (assault ? 11 : 7) * fighter.damage
       * (1 + revenge / 180);
 
     if (fighter.id === "f22" || fighter.id === "j35") {
       const marked = state.enemies.filter((enemy) => enemy.marked);
       marked.forEach((enemy) => {
-        enemy.hp -= blastDamage * (1.35 + state.passivePower);
+        enemy.hp -= blastDamage * 1.35;
         enemy.marked = false;
         burst(enemy.x, enemy.y, fighter.accent, 18, 220, 0.55);
         addFloatingText(enemy.x, enemy.y, "幽灵处决", fighter.accent);
@@ -1227,20 +1112,15 @@ import {
 
     for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
       const enemy = state.enemies[enemyIndex];
-      const distance = Math.hypot(enemy.x - x, enemy.y - y);
-      if (distance > blastRadius + enemy.radius) continue;
       enemy.hp -= enemy.type === "boss" ? blastDamage * 0.42 : blastDamage;
       if (enemy.hp <= 0) killEnemy(enemyIndex);
     }
 
-    for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
-      if (state.enemies[enemyIndex].hp <= 0) killEnemy(enemyIndex);
-    }
-
     if (spec.projectile === "laser") {
       const center = (projectileCount - 1) / 2;
+      const laneGap = Math.min(30, state.width / Math.max(5, projectileCount + 2));
       for (let shot = 0; shot < projectileCount; shot += 1) {
-        addPlayerBullet(x, y, (shot - center) * 0.028, 1900, "laser", assault ? 5.4 : 3.8, {
+        addPlayerBullet(x + (shot - center) * laneGap, y, (shot - center) * 0.018, 1900, "laser", assault ? 5.4 : 3.8, {
           color: shot % 3 === 0 ? fighter.secondary : fighter.accent,
           radius: shot % 5 === 0 ? 6 : 3.8,
           pierce: 18,
@@ -1250,19 +1130,21 @@ import {
     } else if (spec.projectile === "rail") {
       const center = (projectileCount - 1) / 2;
       for (let shot = 0; shot < projectileCount; shot += 1) {
-        addPlayerBullet(x + (shot - center) * 13, y, (shot - center) * 0.018, 1180, "rail", assault ? 3.8 : 2.8, {
+        const laneX = ((shot + 1) / (projectileCount + 1)) * state.width;
+        addPlayerBullet(laneX, y, (shot - center) * 0.012, 1180, "rail", assault ? 3.8 : 2.8, {
           color: fighter.accent,
           radius: 5,
-          pierce: fighter.id === "typhoon" ? 4 + state.pierceBonus : 1 + state.pierceBonus,
+          pierce: fighter.id === "typhoon" ? 4 : 1,
           tactical: true,
         });
       }
     } else if (spec.projectile === "wave") {
       const center = (projectileCount - 1) / 2;
       for (let shot = 0; shot < projectileCount; shot += 1) {
-        addPlayerBullet(x, y, (shot - center) * 0.055, 760, "wave", assault ? 3.2 : 2.3, {
+        const fanAngle = center > 0 ? ((shot - center) / center) * 0.58 : 0;
+        addPlayerBullet(x, y, fanAngle, 760, "wave", assault ? 3.2 : 2.3, {
           phase: shot * 0.7,
-          waveAmp: (28 + (shot % 3) * 6) * state.waveRangeMultiplier,
+          waveAmp: 28 + (shot % 3) * 6,
           color: fighter.accent,
           radius: 6,
           tactical: true,
@@ -1271,9 +1153,10 @@ import {
     } else if (spec.projectile === "heavy") {
       const center = (projectileCount - 1) / 2;
       for (let shot = 0; shot < projectileCount; shot += 1) {
-        addPlayerBullet(x, y, (shot - center) * 0.085, 610, "heavy", (assault ? 6.8 : 5.1) * (1 + revenge / 120), {
+        const fanAngle = center > 0 ? ((shot - center) / center) * 0.68 : 0;
+        addPlayerBullet(x, y, fanAngle, 610, "heavy", (assault ? 6.8 : 5.1) * (1 + revenge / 120), {
           color: shot % 2 ? fighter.secondary : fighter.accent,
-          radius: (assault ? 11 : 9) * Math.min(1.35, state.heavyRangeMultiplier),
+          radius: assault ? 11 : 9,
           tactical: true,
         });
       }
@@ -1289,95 +1172,19 @@ import {
       }
     }
 
-    state.tacticalCooldown = spec.cooldown * state.tacticalCooldownMultiplier * (assault ? 0.84 : 1);
+    state.tacticalCooldown = spec.cooldown;
     if (fighter.id === "su57") state.revengeCharge = 0;
     if (fighter.id === "gripen") {
-      state.overclockStacks = Math.min(10, state.overclockStacks + 2 + state.droneBonus);
+      state.overclockStacks = Math.min(10, state.overclockStacks + 2);
       state.overclockTimer = 3.2;
     }
     state.skillUses += 1;
     state.shake = assault ? 17 : 11;
     state.impactFlash = 0.18;
     audio?.tactical?.(fighter.id, assault);
-    showUpgrade(`${spec.name} // 清除 ${cleared} 枚敌弹`, "技能释放");
+    showUpgrade(`${spec.name} // 全屏清除 ${cleared} 枚敌弹`, "左键全屏必杀");
     burst(x, y, fighter.accent, assault ? 72 : 48, assault ? 390 : 310, 1.15);
     updateAbilityHud();
-  }
-
-  function wingmanOffsets(spec) {
-    const formations = {
-      crown: [[-62, 26], [0, 54], [62, 26]],
-      pincer: [[-66, 8], [66, 8]],
-      echelon: [[-66, 18], [6, 48], [76, 72]],
-      hunter: [[-48, -4], [48, -4]],
-      lance: [[-34, 38], [34, 38]],
-      arrow: [[-58, 34], [0, 58], [58, 34]],
-      bulwark: [[-76, 22], [76, 22]],
-      halo: [[-72, 12], [0, 66], [72, 12]],
-    };
-    if (spec.formation === "orbit") {
-      return Array.from({ length: spec.count }, (_, index) => {
-        const angle = state.elapsed * 1.35 + (Math.PI * 2 * index) / spec.count;
-        return [Math.cos(angle) * 62, 30 + Math.sin(angle) * 28];
-      });
-    }
-    return (formations[spec.formation] || formations.pincer).slice(0, spec.count);
-  }
-
-  function updateWingmanPositions() {
-    const spec = wingmanSpec(state.fighterId);
-    state.wingmanPositions = wingmanOffsets(spec).map(([offsetX, offsetY], index) => ({
-      x: Math.max(22, Math.min(state.width - 22, state.player.x + offsetX)),
-      y: Math.max(52, Math.min(state.height - 88, state.player.y + offsetY + Math.sin(state.elapsed * 4 + index) * 4)),
-    }));
-  }
-
-  function summonWingmen() {
-    if (!state.running || state.ended) return;
-    if (state.elapsed < 15) {
-      showUpgrade(`${Math.ceil(15 - state.elapsed)} 秒后开放`, "僚机正在进入战区");
-      return;
-    }
-    const spec = wingmanSpec(state.fighterId);
-    if (state.wingmanTimer > 0) {
-      showUpgrade(`仍在作战 // ${state.wingmanTimer.toFixed(1)} 秒`, spec.name);
-      return;
-    }
-    if (state.wingmanCooldown > 0) {
-      showUpgrade(`整备中 // ${state.wingmanCooldown.toFixed(1)} 秒`, "僚机支援");
-      audio?.transformDenied?.();
-      return;
-    }
-
-    state.wingmanTimer = spec.duration;
-    state.wingmanCooldown = spec.cooldown;
-    state.wingmanFireTimer = 0.05;
-    state.wingmanUses += 1;
-    state.player.invulnerable = Math.max(state.player.invulnerable, 0.45);
-    updateWingmanPositions();
-    const cleared = clearEnemyBulletsAround(state.player.x, state.player.y, 125);
-    state.shake = 9;
-    audio?.wingmanSummon?.(state.fighterId);
-    showUpgrade(`${spec.count} 架编队 // ${spec.duration.toFixed(1)} 秒`, spec.name);
-    burst(state.player.x, state.player.y, getFighter().secondary, 40, 260, 0.85);
-    updateAbilityHud();
-  }
-
-  function fireWingmen() {
-    const spec = wingmanSpec(state.fighterId);
-    const center = (state.wingmanPositions.length - 1) / 2;
-    state.wingmanPositions.forEach((wingman, index) => {
-      const angle = (index - center) * 0.055;
-      addPlayerBullet(wingman.x, wingman.y - 18, angle, spec.speed, spec.projectile, spec.damage, {
-        source: "wingman",
-        color: index % 2 ? getFighter().secondary : getFighter().accent,
-        radius: spec.projectile === "heavy" ? 8 : spec.projectile === "wave" ? 5.5 : 4.6,
-        phase: state.elapsed * 5 + index,
-        waveAmp: spec.projectile === "wave" ? 28 : 0,
-        pierce: spec.projectile === "rail" ? 2 : undefined,
-      });
-      burst(wingman.x, wingman.y - 16, getFighter().secondary, 2, 34, 0.12);
-    });
   }
 
   function spawnFormation() {
@@ -1400,9 +1207,25 @@ import {
       boss: state.enemies.some((enemy) => enemy.type === "boss"),
     });
     const playerCount = state.bullets.filter((bullet) => bullet.source === "player").length;
-    if (state.bullets.length >= budget.allied || (source === "player" && playerCount >= budget.player)) {
-      if (!options.tactical) return false;
-      const removable = state.bullets.findIndex((bullet) => !bullet.tactical && bullet.source !== "player");
+    if (source === "player" && playerCount >= budget.player) {
+      let removable = -1;
+      let oldestAge = -1;
+      state.bullets.forEach((bullet, index) => {
+        if (bullet.source !== "player" || bullet.tactical || bullet.age <= oldestAge) return;
+        removable = index;
+        oldestAge = bullet.age;
+      });
+      if (removable >= 0) state.bullets.splice(removable, 1);
+      else return false;
+    }
+    if (state.bullets.length >= budget.allied) {
+      let removable = -1;
+      let oldestAge = -1;
+      state.bullets.forEach((bullet, index) => {
+        if (bullet.tactical || bullet.age <= oldestAge) return;
+        removable = index;
+        oldestAge = bullet.age;
+      });
       if (removable >= 0) state.bullets.splice(removable, 1);
       else return false;
     }
@@ -1414,7 +1237,7 @@ import {
       vy: -Math.cos(angle) * speed,
       speed,
       radius: options.radius || 4,
-      damage: damage * fighter.damage * state.damageMultiplier,
+      damage: damage * fighter.damage,
       type,
       age: 0,
       phase: options.phase || 0,
@@ -1422,18 +1245,21 @@ import {
       color: options.color || fighter.secondary,
       source,
       tactical: Boolean(options.tactical),
-      pierceLeft: options.pierce ?? (type === "laser" ? 10 : type === "rail" ? (fighter.id === "typhoon" ? 2 : 1) + state.pierceBonus : 0),
+      targetId: options.targetId ?? null,
+      lockReleased: false,
+      pierceLeft: options.pierce ?? (type === "laser" ? 10 : type === "rail" ? (fighter.id === "typhoon" ? 2 : 1) : 0),
       hitTargets: new Set(),
     });
     return true;
   }
 
   function fireSignatureWeapon(x, y, level) {
-    if (level < 3 || state.elapsed < 15) return;
     const fighter = getFighter();
     const apex = level >= 5;
+    const fireSpec = playerFireSpec(state.elapsed, level, state.combo, state.transformProgress > 0.72, fighter.id);
+    if (!fireSpec.signatureEnabled || state.shotCount % fireSpec.signatureCadence !== 0) return;
 
-    if ((fighter.id === "f22" || fighter.id === "j35") && state.shotCount % (apex ? 2 : 3) === 0) {
+    if (fighter.id === "f22" || fighter.id === "j35") {
       addPlayerBullet(x - 20, y + 7, -0.04, 610, "seeker", apex ? 2.5 : 1.8, {
         color: fighter.accent,
         radius: 6,
@@ -1442,7 +1268,7 @@ import {
         color: fighter.accent,
         radius: 6,
       });
-    } else if (fighter.id === "typhoon" && state.shotCount % 2 === 0) {
+    } else if (fighter.id === "typhoon") {
       addPlayerBullet(x - 25, y + 5, 0.08, 980, "rail", apex ? 2.2 : 1.5, {
         color: fighter.accent,
         radius: 4,
@@ -1454,22 +1280,22 @@ import {
     } else if (fighter.id === "rafale") {
       addPlayerBullet(x - 22, y + 6, -0.05, 700, "wave", apex ? 1.8 : 1.25, {
         phase: state.shotCount * 0.4,
-        waveAmp: (apex ? 30 : 22) * state.waveRangeMultiplier,
+        waveAmp: apex ? 30 : 22,
         color: fighter.accent,
         radius: 5,
       });
       addPlayerBullet(x + 22, y + 6, 0.05, 700, "wave", apex ? 1.8 : 1.25, {
         phase: Math.PI + state.shotCount * 0.4,
-        waveAmp: (apex ? 30 : 22) * state.waveRangeMultiplier,
+        waveAmp: apex ? 30 : 22,
         color: fighter.accent,
         radius: 5,
       });
-    } else if (fighter.id === "gripen" && state.shotCount % (apex ? 2 : 3) === 0) {
+    } else if (fighter.id === "gripen") {
       addPlayerBullet(x, y - 5, 0, 1180, "rail", apex ? 3.1 : 2.25, {
         color: fighter.accent,
         radius: 5,
       });
-    } else if (fighter.id === "su57" && state.shotCount % (apex ? 2 : 3) === 0) {
+    } else if (fighter.id === "su57") {
       addPlayerBullet(x, y - 2, 0, 540, "heavy", apex ? 4.2 : 3.1, {
         color: fighter.accent,
         radius: apex ? 10 : 8,
@@ -1486,21 +1312,13 @@ import {
       }
     } else if (fighter.id === "j20" || fighter.id === "faxx") {
       const type = apex ? "seeker" : "drone";
-      const droneCount = 2 + state.droneBonus;
+      const droneCount = 2;
       for (let drone = 0; drone < droneCount; drone += 1) {
         const side = drone % 2 === 0 ? -1 : 1;
         const rank = Math.floor(drone / 2);
         addPlayerBullet(x + side * (29 + rank * 11), y + 10 + rank * 5, side * (0.03 + rank * 0.018), apex ? 620 : 760, type, apex ? 1.9 : 1.2, {
           color: fighter.accent,
           radius: apex ? 5.5 : 4,
-        });
-      }
-    } else if (fighter.id === "gripen" && state.droneBonus > 0 && state.shotCount % 2 === 0) {
-      for (let drone = 0; drone < state.droneBonus; drone += 1) {
-        const side = drone % 2 === 0 ? -1 : 1;
-        addPlayerBullet(x + side * (27 + drone * 4), y + 8, side * 0.08, 920, "drone", 1.45, {
-          color: fighter.secondary,
-          radius: 4,
         });
       }
     }
@@ -1528,7 +1346,8 @@ import {
     if (!pending || pending.fighterId !== state.fighterId) return;
     const mode = pending.mode;
     const fireBoost = assaultFireSpec(state.transformProgress, state.fighterId);
-    const count = Math.max(1, Math.min(5, (mode.count || 1) + fireBoost.laserBeamBonus));
+    const levelBeamBonus = state.weaponLevel >= 5 ? 2 : state.weaponLevel >= 3 ? 1 : 0;
+    const count = Math.max(1, Math.min(6, (mode.count || 1) + levelBeamBonus + fireBoost.laserBeamBonus));
     const center = (count - 1) / 2;
     const levelPower = 1 + (state.weaponLevel - 1) * 0.1 + state.trajectoryLevel * 0.06;
     for (let index = 0; index < count; index += 1) {
@@ -1539,7 +1358,7 @@ import {
         life: mode.duration,
         duration: mode.duration,
         width: mode.width,
-        damagePerSecond: mode.damage * getFighter().damage * state.damageMultiplier * levelPower * 1.25,
+        damagePerSecond: mode.damage * getFighter().damage * levelPower * 1.25,
         color: index % 2 ? getFighter().secondary : getFighter().accent,
         reflect: Boolean(mode.reflect),
         style: mode.laserStyle || "pierce",
@@ -1647,24 +1466,12 @@ import {
       if (!segments.some((segment) => distanceToSegment(meteor.x, meteor.y, segment) <= meteor.radius + beam.width)) return;
       damageMeteor(meteor, tickDamage * 1.35, beam.color);
     });
-    const mission = state.miniMission;
-    if (mission?.id === "mothership") {
-      mission.parts.slice().forEach((part) => {
-        if (part.destroyed) return;
-        if (!segments.some((segment) => distanceToSegment(part.x, part.y, segment) <= part.radius + beam.width)) return;
-        damageMissionPart(part, tickDamage * 1.45);
-      });
-    } else if (mission?.id === "chain") {
-      const node = mission.nodes.find((item) => !item.destroyed
-        && segments.some((segment) => distanceToSegment(item.x, item.y, segment) <= item.radius + beam.width));
-      if (node) detonateChainNode(node.id);
-    }
   }
 
   function updateLasers(dt) {
     state.laserCooldown = Math.max(0, state.laserCooldown - dt);
     const active = state.laserWarmup > 0 || state.laserBeams.length > 0;
-    const currentMode = toolModeSpec(state.fighterId, state.toolModeIndex);
+    const currentMode = toolModeSpec(state.fighterId);
     const cooling = laserModeSpec(currentMode).coolRate;
     if (!active) state.laserHeat = Math.max(0, state.laserHeat - cooling * dt);
 
@@ -1743,30 +1550,29 @@ import {
     const level = state.weaponLevel;
     state.shotCount += 1;
 
-    const mode = toolModeSpec(state.fighterId, state.toolModeIndex);
+    const mode = toolModeSpec(state.fighterId);
     if (mode.pattern === "laser") {
       startLaserCharge(mode);
       return;
     }
-    const phase = combatPhase(state.elapsed);
     const fireBoost = assaultFireSpec(state.transformProgress, state.fighterId);
-    const extraShots = (phase === "identify" ? 0 : phase === "learn" ? Math.min(1, state.trajectoryLevel) : Math.floor((level - 1) / 2) + state.trajectoryLevel)
-      + (state.firepowerTimer > 0 ? 2 : 0);
-    const phaseLimit = (phase === "identify" ? 3 : phase === "learn" ? 4 : phase === "expand" ? 6 : 8)
-      + fireBoost.projectileBonus;
-    const shotCount = Math.min(phaseLimit, mode.count + extraShots + fireBoost.projectileBonus);
+    const fireSpec = playerFireSpec(state.elapsed, level, state.combo, fireBoost.active, state.fighterId);
+    const extraShots = fireSpec.projectileBonus + state.trajectoryLevel + (state.firepowerTimer > 0 ? 2 : 0);
+    const shotCount = Math.min(fireSpec.phaseLimit, mode.count + extraShots);
     const center = (shotCount - 1) / 2;
     const damage = mode.damage * (1 + (level - 1) * 0.12 + state.trajectoryLevel * 0.08) * (state.firepowerTimer > 0 ? 1.35 : 1);
     for (let shot = 0; shot < shotCount; shot += 1) {
       const angle = (shot - center) * mode.spread;
+      const coreRadius = Math.max(0, ((mode.count || 1) - 1) / 2);
+      const isCoreShot = Math.abs(shot - center) <= coreRadius + 0.01;
       const options = {
         color: shot % 2 ? getFighter().secondary : getFighter().accent,
         radius: mode.pattern === "heavy" ? 8 : mode.pattern === "laser" ? 4.8 : mode.pattern === "wave" || mode.pattern === "seeker" ? 5.5 : 4.2,
         phase: state.shotCount * 0.35 + shot,
-        waveAmp: mode.pattern === "wave" ? (22 + level * 2) * state.waveRangeMultiplier : 0,
-        pierce: mode.pattern === "laser" ? 12 : mode.pattern === "rail" ? 1 + state.pierceBonus : undefined,
+        waveAmp: mode.pattern === "wave" ? 22 + level * 2 : 0,
+        pierce: mode.pattern === "laser" ? 12 : mode.pattern === "rail" ? 1 : undefined,
       };
-      addPlayerBullet(x, y, angle, mode.speed, mode.pattern, damage, options);
+      addPlayerBullet(x, y, angle, mode.speed, mode.pattern, damage * (isCoreShot ? 1 : 0.7), options);
     }
 
     fireSignatureWeapon(x, y, level);
@@ -1778,7 +1584,7 @@ import {
           color: index % 2 ? getFighter().secondary : getFighter().accent,
           radius: index % 2 ? 5 : 7,
           phase: state.shotCount * 0.25 + index,
-          waveAmp: 18 * state.waveRangeMultiplier,
+          waveAmp: 18,
         });
       });
       fireSignatureWeapon(x, y + 5, 5);
@@ -2252,7 +2058,7 @@ import {
   }
 
   function selectAirdropReward() {
-    const rewards = ["firepower", "transform", "defense", "wingman", "skyfire"];
+    const rewards = ["firepower", "transform", "defense", "ally", "skyfire"];
     const bias = getBattleMap(state.mapId).airdropBias;
     return Math.random() < 0.55 && rewards.includes(bias)
       ? bias
@@ -2291,7 +2097,7 @@ import {
   }
 
   function openAirdropChoice(crate, upgraded = false) {
-    if (!crate || state.airdropDecision || state.missionPendingId || state.miniMission) return false;
+    if (!crate || state.airdropDecision) return false;
     crate.status = upgraded ? "upgraded" : "deciding";
     state.airdropDecision = { upgraded };
     airdropChoiceTag.textContent = upgraded ? "护送成功 // 高级空投" : "战术空投 // 立即决策";
@@ -2328,9 +2134,6 @@ import {
       state.overdrive = Math.max(state.overdrive, 6);
       if (reward.wingmen) {
         deployAllies();
-        state.wingmanCooldown = 0;
-        state.wingmanTimer = Math.max(state.wingmanTimer, wingmanSpec(state.fighterId).duration);
-        updateWingmanPositions();
       }
       showUpgrade(
         reward.wingmen
@@ -2422,12 +2225,9 @@ import {
       state.health = Math.min(state.maxHealth, state.health + Math.round(state.maxHealth * 0.3));
       state.barrierTimer = Math.max(state.barrierTimer, 8);
       showUpgrade("恢复 30% 耐久 // 屏障 8 秒", "防御空投");
-    } else if (reward === "wingman") {
+    } else if (reward === "ally") {
       deployAllies();
-      state.wingmanCooldown = 0;
-      state.wingmanTimer = Math.max(state.wingmanTimer, 6);
-      updateWingmanPositions();
-      showUpgrade("精英友军加入 // 僚机冷却归零", "协同空投");
+      showUpgrade("两架精英友军加入战区", "协同空投");
     } else {
       state.enemyBullets = [];
       for (let index = state.enemies.length - 1; index >= 0; index -= 1) {
@@ -2464,7 +2264,7 @@ import {
       const absorbed = clearEnemyBulletsAround(state.player.x, state.player.y, 96);
       if (fighter.id === "su57") {
         const chargeGain = 18 + absorbed * 5;
-        const cap = 100 + state.passivePower * 80;
+        const cap = 100;
         state.revengeCharge = Math.min(cap, state.revengeCharge + chargeGain);
         addFloatingText(x, y - 20, `反击能量 +${Math.round(chargeGain)}`, fighter.secondary);
         audio?.passive?.("revenge");
@@ -2561,12 +2361,12 @@ import {
         ["ally", 90],
       ].forEach(([type, offset]) => spawnPickup(enemy.x + offset, enemy.y, type));
       state.transformCores = TRANSFORM_CORE_COST;
-      state.wingmanCooldown = 0;
+      state.tacticalCooldown = 0;
       state.overdrive = Math.max(state.overdrive, 6);
       state.health = Math.min(state.maxHealth, state.health + Math.round(state.maxHealth * 0.24));
       state.shieldCharges = Math.min(3, state.shieldCharges + 1);
       state.player.invulnerable = Math.max(state.player.invulnerable, 1.2);
-      showUpgrade(`${TRANSFORM_CORE_COST} 球已满 · 僚机就绪 · 极限火力 6 秒`, "王牌补给");
+      showUpgrade(`${TRANSFORM_CORE_COST} 球已满 · 必杀就绪 · 极限火力 6 秒`, "王牌补给");
       addFloatingText(state.width / 2, state.height * 0.38, "王牌补给", COLORS.overdrive);
       audio?.supplyDrop?.();
       triggerScreenEffect("boss-kill", COLORS.overdrive, 1.25, 1, 0.07);
@@ -2635,22 +2435,39 @@ import {
 
   function findNearestEnemy(bullet) {
     const fighter = getFighter();
+    if (bullet.lockReleased) return null;
+    if (bullet.targetId != null) {
+      const locked = state.enemies.find((enemy) => enemy.id === bullet.targetId && enemy.hp > 0);
+      if (locked && locked.y <= bullet.y + 24) return locked;
+      bullet.targetId = null;
+      bullet.lockReleased = true;
+      return null;
+    }
+    if (bullet.age > 0.9) return null;
+
+    const lockCounts = state.bullets.reduce((counts, candidate) => {
+      if (candidate.targetId == null) return counts;
+      counts[candidate.targetId] = (counts[candidate.targetId] || 0) + 1;
+      return counts;
+    }, Object.create(null));
     let nearest = null;
     let bestScore = Infinity;
     for (const enemy of state.enemies) {
-      if (enemy.y > bullet.y + 36) continue;
+      if (enemy.hp <= 0 || enemy.y > state.player.y - 8) continue;
       const dx = enemy.x - bullet.x;
       const dy = enemy.y - bullet.y;
       const distance = dx * dx + dy * dy;
       const priority = (fighter.id === "j20" || fighter.id === "faxx") && (bullet.type === "seeker" || bullet.type === "drone")
         ? enemy.type === "boss" ? 0.18 : enemy.type === "elite" ? 0.38 : enemy.type === "gunner" ? 0.72 : 1
         : 1;
-      const score = distance * priority;
+      const assigned = lockCounts[enemy.id] || 0;
+      const score = assigned * state.width * state.width * 2 + distance * priority;
       if (score < bestScore) {
         nearest = enemy;
         bestScore = score;
       }
     }
+    if (nearest) bullet.targetId = nearest.id;
     return nearest;
   }
 
@@ -2921,7 +2738,7 @@ import {
         if (distance < grazeRadius) {
           bullet.grazed = true;
           state.grazeCount += 1;
-          state.overclockStacks = Math.min(10 + Math.round(state.passivePower * 5), state.overclockStacks + 1);
+          state.overclockStacks = Math.min(10, state.overclockStacks + 1);
           state.overclockTimer = 2.6;
           addFloatingText(state.player.x, state.player.y - 28, "擦弹 // 超频", getFighter().accent);
           audio?.passive?.("graze");
@@ -2974,11 +2791,11 @@ import {
         if (getFighter().id === "typhoon" && bullet.type === "rail") {
           state.railChain = Math.min(20, state.railChain + 1);
           state.railChainTimer = 1.4;
-          appliedDamage *= 1 + Math.min(0.55, state.railChain * 0.045 + state.passivePower * 0.22);
+          appliedDamage *= 1 + Math.min(0.55, state.railChain * 0.045);
         }
         if ((getFighter().id === "f22" || getFighter().id === "j35") && bullet.type === "seeker") {
           enemy.marked = true;
-          appliedDamage *= enemy.type === "boss" ? 1.08 : 1.16 + state.passivePower * 0.2;
+          appliedDamage *= enemy.type === "boss" ? 1.08 : 1.16;
           audio?.passive?.("mark");
         }
         if (enemy.type === "boss" && enemy.parts) {
@@ -2994,19 +2811,19 @@ import {
         enemy.hp -= appliedDamage;
         if (getFighter().id === "rafale" && bullet.type === "wave") {
           enemy.resonance = (enemy.resonance || 0) + 1;
-          const threshold = Math.max(2, 4 - Math.floor(state.passivePower * 2));
+          const threshold = 4;
           if (enemy.resonance >= threshold) {
             enemy.resonance = 0;
             state.resonanceBursts += 1;
-            const radius = 78 * state.waveRangeMultiplier;
-            damageArea(enemy.x, enemy.y, radius, bullet.damage * (1.6 + state.passivePower), enemy);
+            const radius = 78;
+            damageArea(enemy.x, enemy.y, radius, bullet.damage * 1.6, enemy);
             burst(enemy.x, enemy.y, getFighter().accent, 30, 260, 0.72);
             addFloatingText(enemy.x, enemy.y, "共振爆发", getFighter().secondary);
             audio?.passive?.("resonance");
           }
         }
         if (bullet.type === "heavy") {
-          const radius = 52 * state.heavyRangeMultiplier;
+          const radius = 52;
           damageArea(bullet.x, bullet.y, radius, bullet.damage * 0.44, enemy);
           burst(bullet.x, bullet.y, bullet.color, 12, 170, 0.42);
         }
@@ -3382,7 +3199,7 @@ import {
   }
 
   function update(dt) {
-    if (state.missionPendingId || state.airdropDecision) return;
+    if (state.airdropDecision) return;
     state.elapsed += dt;
     state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
     state.transformPulse = Math.max(0, state.transformPulse - dt);
@@ -3396,8 +3213,6 @@ import {
     state.speedLines = Math.max(0, state.speedLines - dt * 1.8);
     state.tacticalCooldown = Math.max(0, state.tacticalCooldown - dt);
     state.barrierTimer = Math.max(0, state.barrierTimer - dt);
-    state.wingmanCooldown = Math.max(0, state.wingmanCooldown - dt);
-    state.wingmanTimer = Math.max(0, state.wingmanTimer - dt);
     state.railChainTimer = Math.max(0, state.railChainTimer - dt);
     if (state.railChainTimer === 0) state.railChain = 0;
     state.overclockTimer = Math.max(0, state.overclockTimer - dt);
@@ -3422,8 +3237,6 @@ import {
     if (state.transformTarget > 0.5) {
       state.transformElapsed = Math.min(TRANSFORM_DURATION, state.transformElapsed + dt);
       state.transformEnergy = Math.max(0, 100 * (1 - state.transformElapsed / TRANSFORM_DURATION));
-      const stageCount = fighter.id === "hypersonic" ? fighter.transformation.stages.length : 1;
-      state.assaultFormIndex = Math.min(stageCount - 1, Math.floor((state.transformElapsed / TRANSFORM_DURATION) * stageCount));
     }
     if (state.transformElapsed >= TRANSFORM_DURATION && state.transformTarget > 0) {
       state.transformTarget = 0;
@@ -3449,43 +3262,22 @@ import {
     const follow = 1 - Math.pow(followBase, dt);
     state.player.x += (state.pointer.x - state.player.x) * follow;
     state.player.y += (state.pointer.y - state.player.y) * follow;
-    if (!state.miniMission) updateMapStructures(dt);
+    updateMapStructures(dt);
     updateAllies(dt);
-
-    if (state.wingmanTimer > 0) {
-      updateWingmanPositions();
-      state.wingmanFireTimer -= dt;
-      if (state.wingmanFireTimer <= 0) {
-        fireWingmen();
-        state.wingmanFireTimer = wingmanSpec(state.fighterId).rate;
-      }
-    } else if (state.wingmanPositions.length) {
-      state.wingmanPositions = [];
-    }
 
     state.fireTimer -= dt;
     if (state.fireTimer <= 0) {
-      const mode = toolModeSpec(state.fighterId, state.toolModeIndex);
+      const mode = toolModeSpec(state.fighterId);
       shoot();
       const weapon = WEAPONS[state.weaponLevel - 1];
-      const rushRate = state.combo >= 8 ? 0.82 : 1;
       const fireBoost = assaultFireSpec(state.transformProgress, state.fighterId);
+      const fireSpec = playerFireSpec(state.elapsed, state.weaponLevel, state.combo, fireBoost.active, state.fighterId);
       const overclockRate = Math.max(0.55, 1 - state.overclockStacks * 0.048);
       const toolRate = mode.rate;
       state.fireTimer = mode.pattern === "laser"
-        ? laserModeSpec(mode).cycle * fireBoost.rateMultiplier * (state.firepowerTimer > 0 ? 0.58 : 1)
-        : weapon.rate * toolRate * fighter.fireRate * state.fireRateMultiplier * fireBoost.rateMultiplier * rushRate
+        ? laserModeSpec(mode).cycle * fireBoost.rateMultiplier * fireSpec.rateMultiplier * (state.firepowerTimer > 0 ? 0.58 : 1)
+        : weapon.rate * toolRate * fighter.fireRate * fireBoost.rateMultiplier * fireSpec.rateMultiplier
           * overclockRate * (state.overdrive > 0 ? 0.68 : 1) * (state.firepowerTimer > 0 ? 0.58 : 1);
-    }
-
-    if (state.miniMission) {
-      updateMiniMission(dt);
-      updatePlayerBullets(dt);
-      resolveMiniMissionBulletHits();
-      updateParticles(dt);
-      updateFloatingTexts(dt);
-      updateAbilityHud();
-      return;
     }
 
     const bossAlive = state.enemies.some((enemy) => enemy.type === "boss");
@@ -3496,7 +3288,7 @@ import {
       const phase = combatPhase(state.elapsed);
       const difficulty = Math.min(0.48, state.elapsed / 180 + state.wave * 0.01);
       const rushDensity = state.combo >= 8 ? 0.82 : 1;
-      const phaseFloor = phase === "identify" ? 0.78 : phase === "learn" ? 0.62 : phase === "expand" ? 0.42 : 0.28;
+      const phaseFloor = phase === "identify" ? 0.58 : phase === "learn" ? 0.48 : phase === "expand" ? 0.36 : 0.26;
       state.spawnTimer = Math.max(phaseFloor, (0.62 - difficulty + Math.random() * 0.24) * rushDensity);
     }
 
@@ -3534,17 +3326,11 @@ import {
     updateFloatingTexts(dt);
     updateAbilityHud();
 
-    const nextMission = autoMiniMissions ? nextMiniMission(
-      state.elapsed,
-      state.completedMiniMissions,
-      bossAlive || state.ended || Boolean(state.missionPendingId) || state.supplyCrates.length > 0 || Boolean(state.airdropDecision),
-    ) : null;
-    if (nextMission) showMissionBriefing(nextMission.id);
   }
 
   function updateWeaponHud() {
     const weapon = WEAPONS[state.weaponLevel - 1];
-    const tool = toolModeSpec(state.fighterId, state.toolModeIndex);
+    const tool = toolModeSpec(state.fighterId);
     const overdriveActive = state.overdrive > 0;
     const tacticalFirepowerActive = state.firepowerTimer > 0;
     const form = state.transformStage === 2 ? "终极" : state.transformStage === 1 ? "战术" : "基础";
@@ -3580,49 +3366,27 @@ import {
     const fighter = getFighter();
     const assault = state.transformProgress > 0.72;
     const transforming = Math.abs(state.transformProgress - state.transformTarget) > 0.02;
-    const modes = fighter.toolModes;
-    const mode = toolModeSpec(state.fighterId, state.toolModeIndex);
-    const wingmen = wingmanSpec(state.fighterId);
-    skillValue.textContent = mode.name;
-    skillCooldown.textContent = mode.pattern === "laser"
-      ? `${state.toolModeIndex + 1} / ${modes.length} · 热 ${Math.round(state.laserHeat)}%`
-      : `${state.toolModeIndex + 1} / ${modes.length}`;
-    skillAbility.classList.remove("is-cooling");
+    skillValue.textContent = fighter.tactical.name;
+    skillCooldown.textContent = state.tacticalCooldown > 0
+      ? `${state.tacticalCooldown.toFixed(1)} 秒`
+      : "就绪";
+    skillAbility.classList.toggle("is-cooling", state.tacticalCooldown > 0);
     formValue.textContent = transforming
       ? state.transformTarget > 0.5 ? "机械重组中" : "飞行复原中"
       : assault
-        ? fighter.id === "hypersonic" ? fighter.transformation.stages[state.assaultFormIndex] : fighter.transformation.label
+        ? fighter.transformation.label
         : "飞行形态";
     formEnergy.style.width = `${assault || state.transformTarget > 0.5 ? state.transformEnergy : (state.transformCores / TRANSFORM_CORE_COST) * 100}%`;
     formEnergyLabel.textContent = assault || state.transformTarget > 0.5
       ? `${transformSecondsRemaining(state.transformEnergy).toFixed(1)} 秒`
       : `${state.transformCores} / ${TRANSFORM_CORE_COST} 球`;
-    wingmanValue.textContent = wingmen.name;
-    wingmanCooldown.textContent = state.wingmanTimer > 0
-      ? `${state.wingmanTimer.toFixed(1)} 秒作战`
-      : state.wingmanCooldown > 0 ? `${state.wingmanCooldown.toFixed(1)} 秒` : "就绪";
-    wingmanAbility.classList.toggle("is-cooling", state.wingmanCooldown > 0 && state.wingmanTimer <= 0);
-    wingmanAbility.classList.toggle("is-active", state.wingmanTimer > 0);
-    const passiveLabels = {
-      f22: `${fighter.passiveName} // ${state.enemies.filter((enemy) => enemy.marked).length} 个目标`,
-      j35: `${fighter.passiveName} // ${state.enemies.filter((enemy) => enemy.marked).length} 个目标`,
-      typhoon: `${fighter.passiveName} // 连续贯穿 ${Math.floor(state.railChain)}`,
-      rafale: `${fighter.passiveName} // ${state.resonanceBursts} 次爆发`,
-      gripen: `${fighter.passiveName} // 超频 ${Math.floor(state.overclockStacks)} / 擦弹 ${state.grazeCount}`,
-      su57: `${fighter.passiveName} // ${Math.round(state.revengeCharge)}%`,
-      j20: `${fighter.passiveName} // ${2 + state.droneBonus} 架无人机`,
-      faxx: `${fighter.passiveName} // ${1 + state.droneBonus} 架僚机`,
-      hypersonic: `${fighter.passiveName} // ${state.toolModeIndex + 1} / ${modes.length} 形态`,
-    };
-    passiveStatus.textContent = passiveLabels[fighter.id] || fighter.passiveName;
     transformButton.disabled = state.transformTarget < 0.5
       && !canEnterCoreTransform(state.transformCores);
     const transformIsReady = state.running
       && state.transformTarget < 0.5
       && canEnterCoreTransform(state.transformCores);
     transformReady.hidden = !transformIsReady;
-    skillButton.disabled = false;
-    wingmanButton.disabled = state.elapsed < 15 || state.wingmanCooldown > 0 || state.wingmanTimer > 0;
+    skillButton.disabled = state.tacticalCooldown > 0;
   }
 
   function updateHud() {
@@ -3652,385 +3416,6 @@ import {
     upgradeMessage.classList.remove("is-visible");
     void upgradeMessage.offsetWidth;
     upgradeMessage.classList.add("is-visible");
-  }
-
-  function showMissionBriefing(missionId) {
-    const mission = MINI_MISSIONS[missionId];
-    if (!mission || state.missionPendingId || state.miniMission || state.airdropDecision || state.supplyCrates.length) return false;
-    state.missionPendingId = missionId;
-    missionEventTag.textContent = `${mission.tag} // 副本来袭`;
-    missionEventTitle.textContent = mission.title;
-    missionEventRule.textContent = mission.rule;
-    missionEventObjective.textContent = mission.objective;
-    missionEventReward.textContent = mission.reward;
-    missionBriefing.hidden = false;
-    gameScreen.classList.add("is-mission-paused");
-    audio?.missionAlert?.();
-    return true;
-  }
-
-  function clearBattlefieldForMission() {
-    state.enemyBullets = [];
-    state.enemies = [];
-    state.bullets = [];
-    state.laserBeams = [];
-    state.pendingLaser = null;
-    state.laserWarmup = 0;
-    state.hazards = [];
-    state.meteorWarnings = [];
-    state.meteors = [];
-    state.supplyCrates = [];
-    state.activeAirdropId = null;
-    state.airdropDecision = null;
-    airdropChoice.hidden = true;
-    airdropProgress.hidden = true;
-    gameScreen.classList.remove("is-airdrop-paused");
-    bossHud.hidden = true;
-  }
-
-  function createMissionRing(index) {
-    const radius = Math.max(36, Math.min(56, state.width * 0.11));
-    const margin = radius + 24;
-    const pattern = [0.22, 0.72, 0.42, 0.8, 0.28];
-    return {
-      id: `mission-ring-${index}`,
-      x: margin + pattern[index % pattern.length] * Math.max(1, state.width - margin * 2),
-      y: -radius - 24,
-      radius,
-      speed: 245 + index * 18,
-      phase: index * 0.9,
-    };
-  }
-
-  function createChainNodes() {
-    const columns = state.width < 620 ? 3 : 4;
-    const rows = 3;
-    const gapX = Math.min(116, (state.width - 92) / Math.max(1, columns - 1));
-    const gapY = Math.min(104, state.height * 0.13);
-    const startX = state.width / 2 - gapX * (columns - 1) / 2;
-    const startY = Math.max(120, state.height * 0.2);
-    return Array.from({ length: columns * rows }, (_, index) => {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      return {
-        id: `chain-${index}`,
-        x: startX + column * gapX + (row % 2 ? gapX * 0.22 : 0),
-        y: startY + row * gapY,
-        radius: 20,
-        destroyed: false,
-        pulse: index * 0.7,
-      };
-    });
-  }
-
-  function beginMiniMission(missionId) {
-    const spec = MINI_MISSIONS[missionId];
-    if (!spec) return false;
-    clearBattlefieldForMission();
-    const mission = {
-      id: missionId,
-      title: spec.title,
-      timer: spec.duration,
-      duration: spec.duration,
-      success: false,
-      score: 0,
-    };
-
-    if (missionId === "coaster") {
-      const motion = coasterMotion(0);
-      Object.assign(mission, {
-        laneX: state.width / 2,
-        horizonX: state.width / 2,
-        laneBaseWidth: Math.min(230, state.width * 0.52),
-        laneWidth: Math.min(230, state.width * 0.52),
-        horizonRatio: motion.horizonRatio,
-        cameraRoll: motion.roll,
-        trackSpeed: motion.speed,
-        segmentIndex: -1,
-        segmentLabel: motion.segmentLabel,
-        onTrack: 0,
-        targetOnTrack: 8.5,
-        boostCharge: 0,
-        boostCount: 0,
-        hitCooldown: 0,
-      });
-      state.speedLines = 3;
-    } else if (missionId === "rings") {
-      Object.assign(mission, { passed: 0, missed: 0, target: 5, ring: createMissionRing(0) });
-    } else if (missionId === "carrier") {
-      Object.assign(mission, {
-        dockTime: 0,
-        carrier: {
-          x: state.width / 2,
-          y: state.height + 120,
-          targetY: state.height * 0.69,
-          width: Math.min(410, state.width * 0.78),
-          height: 190,
-          deckWidth: Math.min(210, state.width * 0.48),
-          deckHeight: 78,
-        },
-      });
-    } else if (missionId === "mothership") {
-      const centerX = state.width / 2;
-      const y = Math.max(145, state.height * 0.24);
-      Object.assign(mission, {
-        mothership: { x: centerX, y, width: Math.min(560, state.width * 0.82), height: 170 },
-        parts: [
-          { id: "mother-left", label: "左舷武器舱", x: centerX - Math.min(150, state.width * 0.23), y: y + 18, radius: 34, hp: 62, maxHp: 62, destroyed: false },
-          { id: "mother-core", label: "中央反应堆", x: centerX, y: y - 8, radius: 38, hp: 82, maxHp: 82, destroyed: false },
-          { id: "mother-right", label: "右舷武器舱", x: centerX + Math.min(150, state.width * 0.23), y: y + 18, radius: 34, hp: 62, maxHp: 62, destroyed: false },
-        ],
-      });
-    } else if (missionId === "chain") {
-      Object.assign(mission, { nodes: createChainNodes(), chainMax: 0, detonated: 0, chainRadius: state.width < 620 ? 124 : 128 });
-    }
-
-    state.miniMission = mission;
-    state.missionPendingId = null;
-    state.player.invulnerable = Math.max(state.player.invulnerable, 1);
-    missionBriefing.hidden = true;
-    missionProgress.hidden = false;
-    gameScreen.classList.remove("is-mission-paused");
-    showWave(`${spec.title} // 开始`);
-    audio?.missionStart?.(missionId);
-    updateMiniMissionHud();
-    return true;
-  }
-
-  function rewardMiniMission(mission, success) {
-    if (!success) return;
-    if (mission.id === "coaster") {
-      state.score += 1000;
-      state.overdrive = Math.max(state.overdrive, 5);
-    } else if (mission.id === "rings") {
-      state.score += 900;
-      state.transformCores = Math.min(TRANSFORM_CORE_COST, state.transformCores + 1);
-    } else if (mission.id === "carrier") {
-      state.health = Math.min(state.maxHealth, state.health + Math.round(state.maxHealth * 0.35));
-      state.transformCores = Math.min(TRANSFORM_CORE_COST, state.transformCores + 1);
-      state.wingmanCooldown = 0;
-      state.overdrive = Math.max(state.overdrive, 5);
-    } else if (mission.id === "mothership") {
-      state.score += 2400;
-      state.transformCores = TRANSFORM_CORE_COST;
-      state.enemyBullets = [];
-    } else if (mission.id === "chain") {
-      state.score += mission.chainMax * 250;
-      state.barrierTimer = Math.max(state.barrierTimer, 7);
-    }
-  }
-
-  function finishMiniMission(success, detail) {
-    const mission = state.miniMission;
-    if (!mission) return;
-    rewardMiniMission(mission, success);
-    state.completedMiniMissions.push(mission.id);
-    state.miniMissionResults.push({ id: mission.id, success, detail });
-    state.miniMission = null;
-    missionProgress.hidden = true;
-    state.spawnTimer = 0.8;
-    state.formationTimer = Math.max(state.formationTimer, 5);
-    state.player.invulnerable = Math.max(state.player.invulnerable, 1.2);
-    showUpgrade(detail, success ? "副本完成" : "副本结束");
-    showWave(success ? "挑战成功" : "返回主战场");
-    triggerScreenEffect(success ? "mission-complete" : "mission-end", success ? COLORS.overdrive : COLORS.trajectory, success ? 1.05 : 0.62, 0.72, 0.04);
-    audio?.missionResult?.(success);
-    updateHud();
-  }
-
-  function skipPendingMiniMission() {
-    const missionId = state.missionPendingId;
-    if (!missionId) return;
-    const spec = MINI_MISSIONS[missionId];
-    state.completedMiniMissions.push(missionId);
-    state.skippedMiniMissions.push(missionId);
-    state.miniMissionResults.push({ id: missionId, success: false, detail: "本局跳过" });
-    state.missionPendingId = null;
-    missionBriefing.hidden = true;
-    gameScreen.classList.remove("is-mission-paused");
-    showUpgrade(`${spec.title} // 已跳过`, "返回主战场");
-    audio?.missionResult?.(false);
-  }
-
-  function detonateChainNode(nodeId) {
-    const mission = state.miniMission;
-    if (mission?.id !== "chain") return 0;
-    const ids = connectedChain(mission.nodes, nodeId, mission.chainRadius);
-    ids.forEach((id, index) => {
-      const node = mission.nodes.find((item) => item.id === id);
-      if (!node || node.destroyed) return;
-      node.destroyed = true;
-      mission.detonated += 1;
-      burst(node.x, node.y, index % 2 ? COLORS.overdrive : COLORS.enemy, 20 + index * 2, 180 + index * 12, 0.62);
-      addFloatingText(node.x, node.y, `连爆 ${index + 1}`, COLORS.overdrive);
-    });
-    mission.chainMax = Math.max(mission.chainMax, ids.length);
-    state.shake = Math.min(18, 5 + ids.length * 1.5);
-    state.speedLines = Math.max(state.speedLines, 1.5);
-    audio?.chainBlast?.(ids.length);
-    if (mission.chainMax >= 5) finishMiniMission(true, `${mission.chainMax} 连爆 // 屏障 7 秒`);
-    return ids.length;
-  }
-
-  function damageMissionPart(part, damage) {
-    if (!part || part.destroyed) return false;
-    part.hp -= damage;
-    burst(part.x, part.y, COLORS.elite, 5, 100, 0.24);
-    if (part.hp > 0) return false;
-    part.destroyed = true;
-    state.score += 600;
-    state.shake = 12;
-    addFloatingText(part.x, part.y, `${part.label}摧毁`, COLORS.overdrive);
-    burst(part.x, part.y, COLORS.overdrive, 42, 280, 0.9);
-    audio?.bossPart?.();
-    const mission = state.miniMission;
-    if (mission?.id === "mothership" && mission.parts.every((item) => item.destroyed)) {
-      finishMiniMission(true, "三处武器舱全部摧毁 // 能量球补满");
-    }
-    return true;
-  }
-
-  function resolveMiniMissionBulletHits() {
-    const mission = state.miniMission;
-    if (!mission || !["mothership", "chain"].includes(mission.id)) return;
-    for (let bulletIndex = state.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
-      const bullet = state.bullets[bulletIndex];
-      if (mission.id === "mothership") {
-        const part = mission.parts.find((item) => !item.destroyed && !bullet.hitTargets.has(item.id) && circlesOverlap(bullet, item));
-        if (!part) continue;
-        bullet.hitTargets.add(part.id);
-        damageMissionPart(part, bullet.damage * (bullet.type === "heavy" ? 1.8 : 1.2));
-      } else {
-        const node = mission.nodes.find((item) => !item.destroyed && circlesOverlap(bullet, item));
-        if (!node) continue;
-        detonateChainNode(node.id);
-      }
-      if (bullet.pierceLeft > 0) bullet.pierceLeft -= 1;
-      else state.bullets.splice(bulletIndex, 1);
-    }
-  }
-
-  function updateMiniMissionHud() {
-    const mission = state.miniMission;
-    if (!mission) return;
-    const spec = MINI_MISSIONS[mission.id];
-    missionProgressTag.textContent = spec.tag;
-    missionProgressTitle.textContent = spec.title;
-    let rule = spec.objective;
-    let value = `${mission.timer.toFixed(1)} 秒`;
-    let progress = Math.max(0, mission.timer / mission.duration);
-    if (mission.id === "coaster") {
-      rule = `${mission.segmentLabel} · 轨道内 ${mission.onTrack.toFixed(1)} / ${mission.targetOnTrack.toFixed(1)} 秒`;
-      value = mission.boostCount > 0 ? `增压 ×${mission.boostCount}` : `${mission.timer.toFixed(1)} 秒`;
-      progress = Math.min(1, mission.onTrack / mission.targetOnTrack);
-    } else if (mission.id === "rings") {
-      rule = `已穿过 ${mission.passed} 个 · 漏过 ${mission.missed} 个`;
-      value = `${mission.passed} / ${mission.target}`;
-      progress = mission.passed / mission.target;
-    } else if (mission.id === "carrier") {
-      rule = isInsideCarrierDeck(state.player, mission.carrier) ? "保持稳定，不要离开甲板" : "飞入黄色甲板引导区";
-      value = `${mission.dockTime.toFixed(1)} / 2.0 秒`;
-      progress = mission.dockTime / 2;
-    } else if (mission.id === "mothership") {
-      const destroyed = mission.parts.filter((part) => part.destroyed).length;
-      rule = `已摧毁 ${destroyed} 个武器舱`;
-      value = `${destroyed} / 3`;
-      progress = destroyed / 3;
-    } else if (mission.id === "chain") {
-      rule = `当前最高 ${mission.chainMax} 连爆`;
-      value = `${mission.chainMax} / 5`;
-      progress = Math.min(1, mission.chainMax / 5);
-    }
-    missionProgressRule.textContent = rule;
-    missionProgressValue.textContent = value;
-    missionProgressBar.style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
-  }
-
-  function updateMiniMission(dt) {
-    const mission = state.miniMission;
-    if (!mission) return;
-    mission.timer = Math.max(0, mission.timer - dt);
-    if (mission.id === "coaster") {
-      const rideProgress = 1 - mission.timer / mission.duration;
-      const motion = coasterMotion(rideProgress);
-      mission.laneX = state.width * motion.center;
-      mission.horizonX = state.width * motion.horizonCenter;
-      mission.laneWidth = mission.laneBaseWidth * motion.laneScale;
-      mission.horizonRatio = motion.horizonRatio;
-      mission.cameraRoll = motion.roll;
-      mission.trackSpeed = motion.speed;
-      mission.segmentLabel = motion.segmentLabel;
-      if (mission.segmentIndex !== motion.segmentIndex) {
-        mission.segmentIndex = motion.segmentIndex;
-        showWave(`${motion.segmentLabel} // 保持轨道`);
-        audio?.coasterCue?.(motion.segmentIndex);
-        state.speedLines = Math.max(state.speedLines, 3.2);
-      }
-      mission.hitCooldown = Math.max(0, mission.hitCooldown - dt);
-      const inside = Math.abs(state.player.x - mission.laneX) <= mission.laneWidth / 2;
-      if (inside) {
-        mission.onTrack = Math.min(mission.targetOnTrack, mission.onTrack + dt);
-        mission.boostCharge += dt * motion.speed;
-        if (mission.boostCharge >= 1.4) {
-          mission.boostCharge -= 1.4;
-          mission.boostCount += 1;
-          state.score += 150;
-          state.speedLines = Math.max(state.speedLines, 3.8);
-          burst(state.player.x, state.player.y + 18, COLORS.trajectory, 16, 210, 0.4);
-          addFloatingText(state.player.x, state.player.y - 32, `轨道增压 ×${mission.boostCount}`, COLORS.trajectory);
-          audio?.coasterBoost?.(mission.boostCount);
-        }
-      } else {
-        mission.boostCharge = 0;
-        if (mission.hitCooldown <= 0) {
-          mission.hitCooldown = 0.65;
-          state.shake = Math.max(state.shake, 7);
-          addFloatingText(state.player.x, state.player.y - 28, "被甩出轨道 // 向中线修正", COLORS.enemy);
-          audio?.structureImpact?.();
-        }
-      }
-      state.speedLines = Math.max(state.speedLines, 2.25 * motion.speed);
-      if (mission.onTrack >= mission.targetOnTrack) finishMiniMission(true, `云端过山车完成 // ${mission.boostCount} 次增压 // 极限火力 5 秒`);
-    } else if (mission.id === "rings") {
-      const ring = mission.ring;
-      ring.y += ring.speed * dt;
-      ring.x += Math.sin(state.elapsed * 2.2 + ring.phase) * 28 * dt;
-      if (ringContainsPlayer(state.player, ring)) {
-        mission.passed += 1;
-        state.score += 300;
-        burst(ring.x, ring.y, COLORS.trajectory, 26, 230, 0.55);
-        addFloatingText(ring.x, ring.y, `穿环 ${mission.passed} / ${mission.target}`, COLORS.trajectory);
-        audio?.ringPass?.(mission.passed);
-        if (mission.passed >= mission.target) finishMiniMission(true, "五环全连 // 获得 1 个能量球");
-        else mission.ring = createMissionRing(mission.passed + mission.missed);
-      } else if (ring.y - ring.radius > state.height) {
-        mission.missed += 1;
-        showUpgrade(`已完成 ${mission.passed} / ${mission.target}`, "能量环漏过");
-        mission.ring = createMissionRing(mission.passed + mission.missed);
-      }
-    } else if (mission.id === "carrier") {
-      const carrier = mission.carrier;
-      carrier.y += (carrier.targetY - carrier.y) * (1 - Math.pow(0.018, dt));
-      if (isInsideCarrierDeck(state.player, carrier)) {
-        mission.dockTime = Math.min(2, mission.dockTime + dt);
-        state.player.invulnerable = Math.max(state.player.invulnerable, 0.2);
-      } else {
-        mission.dockTime = Math.max(0, mission.dockTime - dt * 0.7);
-      }
-      if (mission.dockTime >= 2) {
-        audio?.carrierDock?.();
-        finishMiniMission(true, "航母补给完成 // 修复、能量球、僚机与弹射强化");
-      }
-    }
-
-    updateMiniMissionHud();
-    if (!state.miniMission) return;
-    if (mission.timer <= 0) {
-      const detail = mission.id === "rings"
-        ? `穿过 ${mission.passed} / ${mission.target} 个能量环`
-        : mission.id === "chain" ? `最高 ${mission.chainMax} 连爆` : `${mission.title}未在时限内完成`;
-      finishMiniMission(false, detail);
-    }
   }
 
   function drawBackground() {
@@ -4063,307 +3448,6 @@ import {
       context.fillRect(star.x, star.y, star.size, star.size * (state.overdrive > 0 ? 5 : 2.6));
     }
     context.globalAlpha = 1;
-  }
-
-  function drawCoasterMission(mission) {
-    const horizonY = state.height * mission.horizonRatio;
-    const horizonX = mission.horizonX;
-    const nearX = mission.laneX;
-    const half = mission.laneWidth / 2;
-    const trackPoint = (depth, side = 0) => {
-      const eased = depth ** 1.82;
-      const bend = Math.sin(depth * Math.PI) * (nearX - horizonX) * 0.2;
-      const center = horizonX + (nearX - horizonX) * eased + bend;
-      return {
-        x: center + side * (8 + eased * half),
-        y: horizonY + eased * (state.height - horizonY + 32),
-      };
-    };
-    context.save();
-    const sky = context.createLinearGradient(0, 0, 0, state.height);
-    sky.addColorStop(0, "rgba(27, 104, 128, 0.58)");
-    sky.addColorStop(0.5, "rgba(46, 127, 139, 0.18)");
-    sky.addColorStop(1, "rgba(8, 21, 29, 0.5)");
-    context.fillStyle = sky;
-    context.fillRect(0, 0, state.width, state.height);
-
-    context.fillStyle = "rgba(9, 22, 29, 0.68)";
-    context.beginPath();
-    context.moveTo(0, 0);
-    context.lineTo(Math.max(0, horizonX - 30), horizonY);
-    context.lineTo(Math.max(0, nearX - half - 90), state.height);
-    context.lineTo(0, state.height);
-    context.closePath();
-    context.fill();
-    context.beginPath();
-    context.moveTo(state.width, 0);
-    context.lineTo(Math.min(state.width, horizonX + 30), horizonY);
-    context.lineTo(Math.min(state.width, nearX + half + 90), state.height);
-    context.lineTo(state.width, state.height);
-    context.closePath();
-    context.fill();
-
-    const leftRail = [];
-    const rightRail = [];
-    for (let step = 0; step <= 28; step += 1) {
-      const depth = step / 28;
-      leftRail.push(trackPoint(depth, -1));
-      rightRail.push(trackPoint(depth, 1));
-    }
-
-    context.fillStyle = "rgba(42, 82, 90, 0.5)";
-    context.beginPath();
-    leftRail.forEach((point, index) => {
-      if (index === 0) context.moveTo(point.x, point.y);
-      else context.lineTo(point.x, point.y);
-    });
-    rightRail.slice().reverse().forEach((point) => context.lineTo(point.x, point.y));
-    context.closePath();
-    context.fill();
-
-    context.strokeStyle = COLORS.trajectory;
-    context.shadowColor = COLORS.trajectory;
-    context.shadowBlur = 12;
-    [leftRail, rightRail].forEach((rail) => {
-      context.beginPath();
-      rail.forEach((point, index) => {
-        if (index === 0) context.moveTo(point.x, point.y);
-        else context.lineTo(point.x, point.y);
-      });
-      context.lineWidth = 5;
-      context.stroke();
-    });
-    context.shadowBlur = 0;
-
-    for (let index = 0; index < 15; index += 1) {
-      const depth = ((index / 15) + (state.elapsed * 0.42 * mission.trackSpeed) % 1) % 1;
-      const left = trackPoint(depth, -1);
-      const right = trackPoint(depth, 1);
-      context.globalAlpha = 0.2 + depth * 0.72;
-      context.strokeStyle = index % 5 === 0 ? "rgba(255, 250, 240, 0.9)" : COLORS.trajectory;
-      context.lineWidth = 1 + depth * 4;
-      context.beginPath();
-      context.moveTo(left.x, left.y);
-      context.lineTo(right.x, right.y);
-      context.stroke();
-
-      if (index % 5 === 0 && depth > 0.16) {
-        const height = 18 + depth * 92;
-        context.globalAlpha *= 0.55;
-        context.lineWidth = 2 + depth * 2;
-        context.beginPath();
-        context.moveTo(left.x, left.y);
-        context.lineTo(left.x, left.y - height);
-        context.moveTo(right.x, right.y);
-        context.lineTo(right.x, right.y - height);
-        context.lineTo(left.x, left.y - height);
-        context.stroke();
-      }
-    }
-
-    context.strokeStyle = "rgba(255, 250, 240, 0.34)";
-    for (let index = 0; index < 18; index += 1) {
-      const side = index % 2 ? 1 : -1;
-      const y = ((index * 83 + state.elapsed * 620 * mission.trackSpeed) % (state.height + 180)) - 90;
-      const startX = side > 0 ? state.width : 0;
-      const endX = startX - side * (36 + (index % 4) * 18);
-      context.globalAlpha = 0.12 + (y / state.height) * 0.4;
-      context.lineWidth = 1 + Math.max(0, y / state.height) * 2;
-      context.beginPath();
-      context.moveTo(startX, y);
-      context.lineTo(endX, y + 28);
-      context.stroke();
-    }
-
-    context.globalAlpha = 0.92;
-    context.fillStyle = "#fffaf0";
-    context.font = "900 12px Arial Narrow, sans-serif";
-    context.textAlign = "center";
-    context.fillText(mission.segmentLabel, horizonX, horizonY + 28);
-    context.restore();
-  }
-
-  function drawRingMission(mission) {
-    const ring = mission.ring;
-    if (!ring) return;
-    const pulse = 1 + Math.sin(state.elapsed * 7) * 0.045;
-    context.save();
-    context.translate(ring.x, ring.y);
-    context.scale(pulse, pulse);
-    context.strokeStyle = COLORS.trajectory;
-    context.shadowColor = COLORS.trajectory;
-    context.shadowBlur = 18;
-    context.lineWidth = 9;
-    context.beginPath();
-    context.arc(0, 0, ring.radius, 0, Math.PI * 2);
-    context.stroke();
-    context.shadowBlur = 0;
-    context.strokeStyle = "rgba(255, 250, 240, 0.82)";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.arc(0, 0, ring.radius - 9, 0, Math.PI * 2);
-    context.stroke();
-    context.fillStyle = COLORS.trajectory;
-    context.font = "900 12px Arial Narrow, sans-serif";
-    context.textAlign = "center";
-    context.fillText(`${mission.passed + 1} / ${mission.target}`, 0, 4);
-    context.restore();
-  }
-
-  function drawCarrierMission(mission) {
-    const carrier = mission.carrier;
-    context.save();
-    context.translate(carrier.x, carrier.y);
-    context.fillStyle = "#344c54";
-    context.strokeStyle = "#d7e5e7";
-    context.lineWidth = 3;
-    context.beginPath();
-    context.moveTo(0, -carrier.height * 0.58);
-    context.lineTo(carrier.width * 0.42, -carrier.height * 0.34);
-    context.lineTo(carrier.width * 0.5, carrier.height * 0.42);
-    context.lineTo(carrier.width * 0.32, carrier.height * 0.58);
-    context.lineTo(-carrier.width * 0.4, carrier.height * 0.5);
-    context.lineTo(-carrier.width * 0.5, -carrier.height * 0.38);
-    context.closePath();
-    context.fill();
-    context.stroke();
-
-    context.fillStyle = "#789198";
-    context.fillRect(-carrier.deckWidth * 0.72, -carrier.height * 0.4, carrier.deckWidth * 1.12, carrier.height * 0.82);
-    context.strokeStyle = COLORS.barrier;
-    context.lineWidth = 4;
-    context.setLineDash([12, 8]);
-    context.strokeRect(-carrier.deckWidth / 2, -carrier.deckHeight / 2, carrier.deckWidth, carrier.deckHeight);
-    context.setLineDash([]);
-    context.fillStyle = "rgba(230, 169, 26, 0.14)";
-    context.fillRect(-carrier.deckWidth / 2, -carrier.deckHeight / 2, carrier.deckWidth, carrier.deckHeight);
-    context.strokeStyle = "#fffaf0";
-    context.lineWidth = 3;
-    context.beginPath();
-    context.moveTo(0, carrier.deckHeight * 0.34);
-    context.lineTo(0, -carrier.deckHeight * 0.34);
-    context.moveTo(-10, -carrier.deckHeight * 0.18);
-    context.lineTo(0, -carrier.deckHeight * 0.34);
-    context.lineTo(10, -carrier.deckHeight * 0.18);
-    context.stroke();
-    context.fillStyle = "#f4c44f";
-    context.font = "900 12px Arial Narrow, sans-serif";
-    context.textAlign = "center";
-    context.fillText("停靠区", 0, 5);
-    context.restore();
-  }
-
-  function drawMothershipMission(mission) {
-    const ship = mission.mothership;
-    context.save();
-    context.translate(ship.x, ship.y);
-    context.fillStyle = "#3a4b55";
-    context.strokeStyle = "#9eb8c0";
-    context.lineWidth = 4;
-    context.beginPath();
-    context.moveTo(0, -ship.height * 0.58);
-    context.lineTo(ship.width * 0.5, -ship.height * 0.08);
-    context.lineTo(ship.width * 0.4, ship.height * 0.44);
-    context.lineTo(0, ship.height * 0.58);
-    context.lineTo(-ship.width * 0.4, ship.height * 0.44);
-    context.lineTo(-ship.width * 0.5, -ship.height * 0.08);
-    context.closePath();
-    context.fill();
-    context.stroke();
-    context.fillStyle = "#718894";
-    context.fillRect(-ship.width * 0.28, -18, ship.width * 0.56, 42);
-    context.restore();
-
-    mission.parts.forEach((part) => {
-      context.save();
-      context.translate(part.x, part.y);
-      context.globalAlpha = part.destroyed ? 0.18 : 1;
-      context.fillStyle = part.destroyed ? "#202a2f" : COLORS.enemy;
-      context.strokeStyle = part.destroyed ? "#4f5b60" : COLORS.overdrive;
-      context.lineWidth = 4;
-      context.beginPath();
-      context.arc(0, 0, part.radius, 0, Math.PI * 2);
-      context.fill();
-      context.stroke();
-      if (!part.destroyed) {
-        const ratio = Math.max(0, part.hp / part.maxHp);
-        context.fillStyle = "rgba(255, 250, 240, 0.2)";
-        context.fillRect(-part.radius, part.radius + 9, part.radius * 2, 6);
-        context.fillStyle = COLORS.overdrive;
-        context.fillRect(-part.radius, part.radius + 9, part.radius * 2 * ratio, 6);
-      }
-      context.restore();
-    });
-  }
-
-  function drawChainMission(mission) {
-    context.save();
-    context.strokeStyle = "rgba(215, 107, 44, 0.28)";
-    context.lineWidth = 2;
-    mission.nodes.forEach((node, index) => {
-      if (node.destroyed) return;
-      mission.nodes.slice(index + 1).forEach((other) => {
-        if (other.destroyed || Math.hypot(node.x - other.x, node.y - other.y) > mission.chainRadius) return;
-        context.beginPath();
-        context.moveTo(node.x, node.y);
-        context.lineTo(other.x, other.y);
-        context.stroke();
-      });
-    });
-    mission.nodes.forEach((node) => {
-      if (node.destroyed) return;
-      const pulse = 1 + Math.sin(state.elapsed * 6 + node.pulse) * 0.08;
-      context.save();
-      context.translate(node.x, node.y);
-      context.scale(pulse, pulse);
-      context.fillStyle = COLORS.enemy;
-      context.strokeStyle = COLORS.overdrive;
-      context.lineWidth = 3;
-      context.fillRect(-18, -22, 36, 44);
-      context.strokeRect(-18, -22, 36, 44);
-      context.fillStyle = "#fffaf0";
-      context.fillRect(-3, -14, 6, 28);
-      context.fillRect(-10, -3, 20, 6);
-      context.restore();
-    });
-    context.restore();
-  }
-
-  function drawMiniMissionScene() {
-    const mission = state.miniMission;
-    if (!mission) return;
-    if (mission.id === "coaster") drawCoasterMission(mission);
-    else if (mission.id === "rings") drawRingMission(mission);
-    else if (mission.id === "carrier") drawCarrierMission(mission);
-    else if (mission.id === "mothership") drawMothershipMission(mission);
-    else if (mission.id === "chain") drawChainMission(mission);
-  }
-
-  function drawCoasterCockpit() {
-    if (state.miniMission?.id !== "coaster") return;
-    context.save();
-    context.fillStyle = "rgba(8, 17, 22, 0.82)";
-    context.beginPath();
-    context.moveTo(0, state.height);
-    context.lineTo(0, state.height * 0.76);
-    context.lineTo(state.width * 0.17, state.height * 0.9);
-    context.lineTo(state.width * 0.36, state.height);
-    context.closePath();
-    context.fill();
-    context.beginPath();
-    context.moveTo(state.width, state.height);
-    context.lineTo(state.width, state.height * 0.76);
-    context.lineTo(state.width * 0.83, state.height * 0.9);
-    context.lineTo(state.width * 0.64, state.height);
-    context.closePath();
-    context.fill();
-    context.strokeStyle = COLORS.trajectory;
-    context.globalAlpha = 0.62;
-    context.lineWidth = 3;
-    context.beginPath();
-    context.arc(state.width / 2, state.height * 0.88, 48, Math.PI, Math.PI * 2);
-    context.stroke();
-    context.restore();
   }
 
   function drawMapStructures() {
@@ -4876,7 +3960,7 @@ import {
     for (const bullet of state.bullets) {
       context.save();
       context.translate(bullet.x, bullet.y);
-      context.globalAlpha = bullet.source === "ally" ? 0.42 : bullet.source === "wingman" ? 0.58 : 0.94;
+      context.globalAlpha = bullet.source === "ally" ? 0.42 : 0.94;
       context.fillStyle = bullet.color;
 
       if (bullet.type === "seeker") {
@@ -5406,36 +4490,23 @@ import {
     if (state.shake > 0) {
       context.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
     }
-    if (state.miniMission?.id === "coaster" && !reducedMotion) {
-      const mission = state.miniMission;
-      const bank = mission.cameraRoll || 0;
-      const speedScale = 1.035 + Math.max(0, (mission.trackSpeed || 1) - 1) * 0.025;
-      context.translate(state.width / 2, state.height / 2);
-      context.rotate(bank);
-      context.scale(speedScale, speedScale);
-      context.translate(-state.width / 2, -state.height / 2);
-    }
     drawBackground();
-    drawMiniMissionScene();
-    if (!state.miniMission) {
-      drawMapStructures();
-      drawHazards();
-      drawMeteors();
-      drawSupplyCrates();
-    }
+    drawMapStructures();
+    drawHazards();
+    drawMeteors();
+    drawSupplyCrates();
     drawPlayerBullets();
-    if (!state.miniMission) state.enemies.forEach(drawEnemy);
+    state.enemies.forEach(drawEnemy);
     drawLaserBeams();
     drawScreenLaser();
-    if (!state.miniMission) drawPickups();
+    drawPickups();
     drawParticles();
     drawAllies();
     drawBarrier();
     drawPlayer();
-    drawCoasterCockpit();
     drawNuclearStrike();
     drawScreenFeedback();
-    if (!state.miniMission) drawEnemyBullets();
+    drawEnemyBullets();
     context.restore();
     visuals?.renderBattle(state, getFighter());
     drawFloatingTexts();
@@ -5480,21 +4551,10 @@ import {
         transformEnergy: state.transformEnergy,
         transformCores: state.transformCores,
         transformElapsed: state.transformElapsed,
-        assaultFormIndex: state.assaultFormIndex,
         assaultFireRateMultiplier: assaultFireSpec(state.transformProgress, state.fighterId).rateMultiplier,
         assaultProjectileBonus: assaultFireSpec(state.transformProgress, state.fighterId).projectileBonus,
-        toolModeIndex: state.toolModeIndex,
-        toolMode: toolModeSpec(state.fighterId, state.toolModeIndex).id,
+        primaryWeapon: toolModeSpec(state.fighterId).id,
         tacticalCooldown: state.tacticalCooldown,
-        wingmanTimer: state.wingmanTimer,
-        wingmanCooldown: state.wingmanCooldown,
-        wingmanUses: state.wingmanUses,
-        wingmanCount: state.wingmanPositions.length,
-        passiveStatus: passiveStatus.textContent,
-        passivePower: state.passivePower,
-        pierceBonus: state.pierceBonus,
-        tacticalProjectileBonus: state.tacticalProjectileBonus,
-        droneBonus: state.droneBonus,
         revengeCharge: state.revengeCharge,
         overclockStacks: state.overclockStacks,
         bossKills: state.bossKills,
@@ -5516,12 +4576,26 @@ import {
           counts[bullet.type] = (counts[bullet.type] || 0) + 1;
           return counts;
         }, {}),
+        homingLocks: state.bullets
+          .filter((bullet) => bullet.type === "seeker" || bullet.type === "drone")
+          .map((bullet) => ({
+            targetId: bullet.targetId,
+            tactical: bullet.tactical,
+            released: bullet.lockReleased,
+          })),
         enemyBullets: state.enemyBullets.length,
         enemyBulletKinds: state.enemyBullets.reduce((counts, bullet) => {
           counts[bullet.kind] = (counts[bullet.kind] || 0) + 1;
           return counts;
         }, {}),
         enemies: state.enemies.map((enemy) => enemy.type),
+        enemyDetails: state.enemies.map((enemy) => ({
+          id: enemy.id,
+          type: enemy.type,
+          hp: enemy.hp,
+          x: enemy.x,
+          y: enemy.y,
+        })),
         mapId: state.mapId,
         combatPhase: combatPhase(state.elapsed),
         laserHeat: state.laserHeat,
@@ -5565,22 +4639,6 @@ import {
         })),
         hazards: state.hazards.map((hazard) => hazard.type),
         bossPhases: state.enemies.filter((enemy) => enemy.type === "boss").map((enemy) => enemy.bossPhase),
-        missionPendingId: state.missionPendingId,
-        miniMission: state.miniMission ? {
-          id: state.miniMission.id,
-          timer: state.miniMission.timer,
-          onTrack: state.miniMission.onTrack || 0,
-          segmentLabel: state.miniMission.segmentLabel || "",
-          boostCount: state.miniMission.boostCount || 0,
-          passed: state.miniMission.passed || 0,
-          missed: state.miniMission.missed || 0,
-          dockTime: state.miniMission.dockTime || 0,
-          destroyedParts: state.miniMission.parts?.filter((part) => part.destroyed).length || 0,
-          chainMax: state.miniMission.chainMax || 0,
-        } : null,
-        completedMiniMissions: [...state.completedMiniMissions],
-        skippedMiniMissions: [...state.skippedMiniMissions],
-        miniMissionResults: [...state.miniMissionResults],
       }),
       addCore: () => collectPowerCore(),
       collectPickup: (type) => collectPickup(type),
@@ -5637,13 +4695,11 @@ import {
         updateHud();
       },
       toggleTransform: () => toggleTransform(),
-      cycleToolMode: () => cycleToolMode(),
       fireTactical: () => fireTactical(),
       setTacticalCooldown: (seconds = 0) => {
         state.tacticalCooldown = Math.max(0, Number(seconds) || 0);
         updateAbilityHud();
       },
-      summonWingmen: () => summonWingmen(),
       setTransformCores: (value) => {
         state.transformCores = Math.max(0, Math.min(TRANSFORM_CORE_COST, Math.trunc(Number(value) || 0)));
         updateAbilityHud();
@@ -5763,49 +4819,14 @@ import {
         return crate ? damageAirdropCrate(crate, Math.max(0, Number(amount) || 0)) : false;
       },
       grantSupply: (reward) => {
-        if (!["firepower", "transform", "defense", "wingman", "skyfire"].includes(reward)) return false;
+        if (!["firepower", "transform", "defense", "ally", "skyfire"].includes(reward)) return false;
         collectSupplyReward(reward);
         return true;
-      },
-      setToolMode: (index) => {
-        state.toolModeIndex = Math.max(0, Math.min(getFighter().toolModes.length - 1, Math.trunc(Number(index) || 0)));
-        updateAbilityHud();
       },
       triggerScreenLaser: () => startScreenLaser(),
       clearScreenLaser: () => {
         state.screenLaser = null;
         state.screenLaserCooldown = 0;
-      },
-      showMiniMission: (missionId) => showMissionBriefing(missionId),
-      startMiniMission: (missionId) => {
-        missionBriefing.hidden = true;
-        gameScreen.classList.remove("is-mission-paused");
-        state.missionPendingId = null;
-        return beginMiniMission(missionId);
-      },
-      acceptMiniMission: () => beginMiniMission(state.missionPendingId),
-      skipMiniMission: () => skipPendingMiniMission(),
-      completeMiniMission: () => {
-        const mission = state.miniMission;
-        if (!mission) return false;
-        if (mission.id === "coaster") {
-          mission.onTrack = mission.targetOnTrack;
-          updateMiniMission(0);
-        } else if (mission.id === "rings") {
-          mission.passed = mission.target;
-          finishMiniMission(true, "五环全连 // 获得 1 个能量球");
-        } else if (mission.id === "carrier") {
-          state.player.x = mission.carrier.x;
-          state.player.y = mission.carrier.y;
-          mission.dockTime = 2;
-          updateMiniMission(0);
-        } else if (mission.id === "mothership") {
-          mission.parts.slice().forEach((part) => damageMissionPart(part, 999));
-        } else if (mission.id === "chain") {
-          const node = mission.nodes.find((item) => !item.destroyed);
-          if (node) detonateChainNode(node.id);
-        }
-        return true;
       },
     };
   }
@@ -5813,11 +4834,6 @@ import {
   startButton.addEventListener("click", startGame);
   restartButton.addEventListener("click", restartGame);
   menuButton.addEventListener("click", exitGame);
-  missionEnter.addEventListener("click", async () => {
-    await audio?.unlock();
-    beginMiniMission(state.missionPendingId);
-  });
-  missionSkip.addEventListener("click", skipPendingMiniMission);
   airdropDefense.addEventListener("click", async () => {
     await audio?.unlock();
     chooseTacticalAirdrop("defense");
@@ -5926,28 +4942,21 @@ import {
     if (event.key.toLowerCase() === "q" && !gameScreen.hidden) {
       event.preventDefault();
       exitGame();
-    } else if (event.code === "Space" && !gameScreen.hidden) {
-      event.preventDefault();
-      summonWingmen();
-    } else if (event.key.toLowerCase() === "e" && !gameScreen.hidden) {
-      event.preventDefault();
-      fireTactical();
     }
   });
   canvas.addEventListener("pointermove", (event) => setPointer(event.clientX, event.clientY));
   canvas.addEventListener("pointerdown", (event) => {
     setPointer(event.clientX, event.clientY);
     if (event.pointerType === "mouse" && event.button === 0) {
-      cycleToolMode();
+      fireTactical();
     }
     if (event.pointerType === "mouse" && event.button === 2) {
       toggleTransform();
     }
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-  skillButton.addEventListener("click", cycleToolMode);
+  skillButton.addEventListener("click", fireTactical);
   transformButton.addEventListener("click", toggleTransform);
-  wingmanButton.addEventListener("click", summonWingmen);
 
   const forceCanvas = new URLSearchParams(window.location.search).get("renderer") === "canvas";
   visuals = { available: false, setFighter() {}, setPreviewMode() {}, setToolMode() {}, resizeBattle() {}, renderBattle() {}, getRigSignature() { return ""; }, getHangarInteraction() { return null; }, getHangarPreview() { return null; }, dispose() {} };

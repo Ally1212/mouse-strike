@@ -6,6 +6,18 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 
 const TAU = Math.PI * 2;
 
+const FUSION_MOTIONS = {
+  falcon: { wing: [0.58, 1.02], sweep: [0.26, -0.06], cant: [0.02, 0.16], canard: [0.12, 1.3], tail: [0.6, 1.42], engine: [0.68, 1.08], weapon: [0.12, 0.96], identity: 1.08 },
+  specter: { wing: [0.7, 1.3], sweep: [0.18, 0.02], cant: [0.01, 0.04], canard: [0.05, 0.08], tail: [0.5, 0.12], engine: [0.72, 1.24], weapon: [0.08, 0.72], identity: 1.18 },
+  hunter: { wing: [0.62, 0.98], sweep: [0.24, -0.12], cant: [0, -0.12], canard: [0.1, 0.72], tail: [0.7, 1.34], engine: [0.72, 1], weapon: [0.08, 1.22], identity: 1.06 },
+  lancer: { wing: [0.72, 1.06], sweep: [0.12, 0.34], cant: [0, 0.22], canard: [0.24, 1.45], tail: [0.64, 0.86], engine: [0.76, 0.94], weapon: [0.06, 1.16], identity: 1.24 },
+  dualist: { wing: [0.66, 1.2], sweep: [0.2, -0.02], cant: [0.02, 0.28], canard: [0.16, 1.14], tail: [0.66, 0.96], engine: [0.7, 1.06], weapon: [0.1, 1.04], identity: 1.2 },
+  skirmisher: { wing: [0.54, 1.1], sweep: [0.3, 0.08], cant: [0.02, -0.28], canard: [0.2, 1.3], tail: [0.62, 0.78], engine: [0.64, 0.9], weapon: [0.08, 0.82], identity: 1.16 },
+  siege: { wing: [0.74, 0.96], sweep: [0.14, 0.04], cant: [0, 0.08], canard: [0.08, 0.54], tail: [0.8, 1.12], engine: [0.76, 1.34], weapon: [0.14, 1.38], identity: 1.16 },
+  commander: { wing: [0.6, 1.16], sweep: [0.24, 0.02], cant: [0.02, 0.16], canard: [0.2, 1.38], tail: [0.66, 1.18], engine: [0.7, 1.1], weapon: [0.08, 1.08], identity: 1.2 },
+  hypersonic: { wing: [0.64, 1.38], sweep: [0.28, -0.08], cant: [0.04, 0.34], canard: [0.08, 1.18], tail: [0.58, 1.28], engine: [0.68, 1.26], weapon: [0.04, 1.3], identity: 1.42 },
+};
+
 function smoothstep(value) {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
@@ -287,6 +299,7 @@ class FighterRig {
     this.fighter = fighter;
     this.rig = fighter?.rig || {};
     this.profile = this.rig.profile || "hunter";
+    this.chassis = this.rig.chassis || fighter?.archetype || "light";
     this.pose = ASSAULT_POSES[this.profile] || ASSAULT_POSES.hunter;
     this.toolModeIndex = 0;
     this.root.clear();
@@ -349,6 +362,7 @@ class FighterRig {
     this.buildArms();
     this.buildDetails();
     this.buildIdentityKit();
+    this.buildFusionAirframe();
     this.setTransform(0);
   }
 
@@ -514,6 +528,271 @@ class FighterRig {
     });
   }
 
+  buildFusionAirframe() {
+    const specs = {
+      light: { width: 18, length: 82, height: 9, span: 50, chord: 25, sweep: 0.64, taper: 0.38, engineGap: 6, podGap: 17 },
+      heavy: { width: 28, length: 78, height: 13, span: 58, chord: 30, sweep: 0.42, taper: 0.48, engineGap: 9, podGap: 23 },
+      wing: { width: 22, length: 86, height: 10, span: 72, chord: 32, sweep: 0.58, taper: 0.62, engineGap: 8, podGap: 25 },
+      hero: { width: 24, length: 94, height: 11, span: 78, chord: 34, sweep: 0.72, taper: 0.7, engineGap: 9, podGap: 27 },
+    };
+    const spec = specs[this.chassis] || specs.light;
+    const frame = new THREE.Group();
+    frame.name = `fusion-airframe-${this.chassis}`;
+    frame.visible = false;
+    this.root.add(frame);
+    this.fusionFrame = frame;
+
+    const fuselage = createFuselage(this.bodyMaterial, {
+      width: spec.width,
+      length: spec.length,
+      height: spec.height,
+      tailWidth: this.chassis === "heavy" ? 0.62 : 0.42,
+    });
+    fuselage.name = "fusion-fuselage";
+    addOutline(fuselage, colorNumber(this.fighter?.accent, 0xd8ff45));
+    frame.add(fuselage);
+
+    const nose = createWedgeNose(this.bodyMaterial, {
+      width: spec.width * 0.54,
+      length: 20,
+      height: spec.height * 0.72,
+    });
+    nose.name = "fusion-nose";
+    nose.position.y = spec.length * 0.5 + 8;
+    addOutline(nose);
+    frame.add(nose);
+
+    const canopy = new THREE.Mesh(
+      new THREE.SphereGeometry(6.5, 20, 14),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x08151d,
+        emissive: colorNumber(this.fighter?.accent, 0xd8ff45),
+        emissiveIntensity: 0.12,
+        metalness: 0.44,
+        roughness: 0.12,
+        clearcoat: 0.72,
+        transparent: true,
+        opacity: 0.92,
+      }),
+    );
+    canopy.name = "fusion-canopy";
+    canopy.scale.set(spec.width / 18, 1.48, 0.48);
+    canopy.position.set(0, spec.length * 0.2, spec.height * 0.5);
+    frame.add(canopy);
+
+    const wingGroup = new THREE.Group();
+    wingGroup.name = "fusion-wings";
+    frame.add(wingGroup);
+    const wings = [];
+    [-1, 1].forEach((side) => {
+      const wing = createPlanform(this.bodyMaterial, {
+        span: spec.span,
+        chord: spec.chord,
+        thickness: this.chassis === "heavy" ? 5 : 3.6,
+        side,
+        sweep: spec.sweep,
+        taper: spec.taper,
+        curve: this.chassis === "wing" || this.chassis === "hero" ? 0.12 : 0,
+      });
+      wing.name = side < 0 ? "fusion-left-wing" : "fusion-right-wing";
+      wing.position.set(0, -2, 0);
+      addOutline(wing, colorNumber(this.fighter?.accent, 0xd8ff45));
+      wingGroup.add(wing);
+      wings.push(wing);
+
+      const edge = createPlanform(this.panelMaterial, {
+        span: spec.span * 0.58,
+        chord: spec.chord * 0.34,
+        thickness: 2.2,
+        side,
+        sweep: Math.min(0.82, spec.sweep + 0.12),
+        taper: 0.48,
+      });
+      edge.position.set(0, -spec.chord * 0.22, 2.5);
+      wingGroup.add(edge);
+    });
+
+    const canardGroup = new THREE.Group();
+    canardGroup.name = "fusion-canards";
+    frame.add(canardGroup);
+    const canards = [];
+    [-1, 1].forEach((side) => {
+      const canard = createPlanform(this.panelMaterial, {
+        span: spec.span * 0.18,
+        chord: Math.max(9, spec.chord * 0.34),
+        thickness: 2.2,
+        side,
+        sweep: 0.7,
+        taper: 0.34,
+      });
+      canard.position.set(0, spec.length * 0.24, 1.2);
+      canardGroup.add(canard);
+      canards.push(canard);
+    });
+
+    const assaultGroup = new THREE.Group();
+    assaultGroup.name = "fusion-assault-surfaces";
+    frame.add(assaultGroup);
+    [-1, 1].forEach((side) => {
+      const tipBlade = createPlanform(this.energyMaterial, {
+        span: spec.span * 0.2,
+        chord: Math.max(6, spec.chord * 0.22),
+        thickness: 1.3,
+        side,
+        sweep: 0.76,
+        taper: 0.3,
+      });
+      tipBlade.position.set(side * spec.span * 0.84, -spec.chord * 0.14, 1.8);
+      assaultGroup.add(tipBlade);
+    });
+    const dorsalSpine = createPanel(this.darkMaterial, [spec.width * 0.34, spec.length * 0.58, 2.6]);
+    dorsalSpine.position.set(0, -spec.length * 0.04, spec.height * 0.56);
+    assaultGroup.add(dorsalSpine);
+    const energySpine = createPanel(this.energyMaterial, [2.2, spec.length * 0.5, 1.5]);
+    energySpine.position.set(0, -spec.length * 0.02, spec.height * 0.76);
+    assaultGroup.add(energySpine);
+
+    const identityGroup = new THREE.Group();
+    identityGroup.name = `fusion-identity-${this.profile}`;
+    frame.add(identityGroup);
+    const addMirroredPanels = (size, x, y, z, rotation = 0) => {
+      [-1, 1].forEach((side) => {
+        const panel = createPanel(this.panelMaterial, size);
+        panel.position.set(side * x, y, z);
+        panel.rotation.z = side * rotation;
+        identityGroup.add(panel);
+      });
+    };
+    if (this.profile === "falcon") {
+      addMirroredPanels([3.2, 34, 2.2], spec.span * 0.52, -2, 4, 0.38);
+    } else if (this.profile === "specter") {
+      [-1, 1].forEach((side) => {
+        const drone = createPlanform(this.panelMaterial, { span: 13, chord: 13, thickness: 2.4, side, sweep: 0.72, taper: 0.34 });
+        drone.position.set(side * spec.span * 0.86, -8, 5);
+        identityGroup.add(drone);
+      });
+    } else if (this.profile === "hunter") {
+      [-1, 1].forEach((side) => {
+        for (let index = 0; index < 3; index += 1) {
+          const claw = createPanel(index === 1 ? this.energyMaterial : this.darkMaterial, [2.8, 17 - index * 2, 2.4]);
+          claw.position.set(side * (spec.span * 0.48 + index * 5), 3 - index * 4, 3.8);
+          claw.rotation.z = -side * (0.5 + index * 0.08);
+          identityGroup.add(claw);
+        }
+      });
+    } else if (this.profile === "lancer") {
+      const rail = createPanel(this.darkMaterial, [5.4, spec.length * 0.82, 4.2]);
+      rail.position.set(0, spec.length * 0.16, 3.6);
+      identityGroup.add(rail);
+      const railTip = createPanel(this.energyMaterial, [2.6, 24, 2.2]);
+      railTip.position.set(0, spec.length * 0.62, 4);
+      identityGroup.add(railTip);
+    } else if (this.profile === "dualist") {
+      [-1, 1].forEach((side) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(8, 1.2, 10, 32), this.energyMaterial);
+        ring.position.set(side * spec.span * 0.48, -3, 6);
+        identityGroup.add(ring);
+      });
+    } else if (this.profile === "skirmisher") {
+      const rotor = new THREE.Mesh(new THREE.TorusGeometry(10, 1.5, 10, 36), this.energyMaterial);
+      rotor.position.set(0, -spec.length * 0.46, 2.5);
+      rotor.rotation.x = Math.PI / 2;
+      identityGroup.add(rotor);
+      addMirroredPanels([3, 28, 2.6], spec.span * 0.56, -5, 4, 0.54);
+    } else if (this.profile === "siege") {
+      addMirroredPanels([10, 34, 8], spec.span * 0.42, -1, 4.2, 0.04);
+      addMirroredPanels([4, 5, 4], spec.span * 0.42, 17, 4.2, 0);
+    } else if (this.profile === "commander") {
+      for (let index = -2; index <= 2; index += 1) {
+        const crown = createFin(index === 0 ? this.heroGoldMaterial : this.panelMaterial, {
+          chord: 7,
+          height: 13 - Math.abs(index) * 2,
+          thickness: 2,
+          sweep: 0.22,
+        });
+        crown.position.set(index * 6.5, -spec.length * 0.14 - Math.abs(index) * 2, spec.height * 0.5);
+        identityGroup.add(crown);
+      }
+    } else if (this.profile === "hypersonic") {
+      for (let index = 0; index < 3; index += 1) {
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(9 + index * 6, 1.1, 10, 40), this.energyMaterial);
+        halo.position.set(0, -8 - index * 5, 7 + index * 1.6);
+        identityGroup.add(halo);
+      }
+      const lance = createPanel(this.heroGoldMaterial, [3.6, spec.length * 0.72, 3]);
+      lance.position.set(0, spec.length * 0.3, 6);
+      identityGroup.add(lance);
+    }
+
+    const engineGroup = new THREE.Group();
+    engineGroup.name = "fusion-engines";
+    frame.add(engineGroup);
+    [-1, 1].forEach((side) => {
+      const nacelle = createPanel(this.darkMaterial, [8 + (this.chassis === "heavy" ? 3 : 0), 28, 7]);
+      nacelle.position.set(side * spec.engineGap, -spec.length * 0.31, -1);
+      nacelle.name = side < 0 ? "fusion-left-engine" : "fusion-right-engine";
+      engineGroup.add(nacelle);
+      const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.2, 5, 16), this.energyMaterial);
+      exhaust.rotation.x = Math.PI / 2;
+      exhaust.position.set(side * spec.engineGap, -spec.length * 0.49, -1);
+      engineGroup.add(exhaust);
+    });
+
+    const weaponGroup = new THREE.Group();
+    weaponGroup.name = "fusion-weapons";
+    frame.add(weaponGroup);
+    [-1, 1].forEach((side) => {
+      const pod = createPanel(this.darkMaterial, [this.chassis === "heavy" ? 8 : 6, this.chassis === "heavy" ? 30 : 23, 5]);
+      pod.name = side < 0 ? "fusion-left-weapon" : "fusion-right-weapon";
+      pod.position.set(side * spec.podGap, 0, -1);
+      weaponGroup.add(pod);
+      const muzzle = createPanel(this.energyMaterial, [3.2, 1.8, 3.2]);
+      muzzle.position.set(side * spec.podGap, 11.8, -1);
+      weaponGroup.add(muzzle);
+    });
+
+    const core = new THREE.Mesh(
+      new THREE.TorusGeometry(this.chassis === "hero" ? 7 : 5, 1.2, 10, 36),
+      this.energyMaterial,
+    );
+    core.name = "fusion-core";
+    core.rotation.x = Math.PI / 2;
+    core.position.set(0, 1, spec.height * 0.58);
+    frame.add(core);
+
+    const tailGroup = new THREE.Group();
+    tailGroup.name = "fusion-tail";
+    frame.add(tailGroup);
+    const tails = [];
+    [-1, 1].forEach((side) => {
+      const stabilizer = createPlanform(this.panelMaterial, {
+        span: spec.span * 0.24,
+        chord: this.chassis === "heavy" ? 16 : 13,
+        thickness: 2.5,
+        side,
+        sweep: 0.62,
+        taper: 0.42,
+      });
+      stabilizer.position.set(0, -spec.length * 0.34, 2);
+      tailGroup.add(stabilizer);
+      tails.push(stabilizer);
+    });
+
+    frame.userData = {
+      wingGroup,
+      wings,
+      canardGroup,
+      canards,
+      assaultGroup,
+      identityGroup,
+      engineGroup,
+      weaponGroup,
+      tailGroup,
+      tails,
+      core,
+    };
+  }
+
   buildArms() {
     const shoulderSize = this.rig.shoulders || [16, 12, 9];
     const armLength = this.rig.arms || 24;
@@ -526,8 +805,7 @@ class FighterRig {
       shoulder.add(armor);
 
       const arm = this.register(side < 0 ? "leftArm" : "rightArm", new THREE.Group());
-      const upper = createPanel(this.bodyMaterial, [Math.max(7, shoulderSize[0] * 0.48), armLength, Math.max(7, shoulderSize[2] * 0.86)]);
-      upper.position.y = -7;
+      const upper = createPanel(this.bodyMaterial, [Math.max(9, shoulderSize[0] * 0.68), Math.max(10, armLength * 0.42), Math.max(7, shoulderSize[2] * 0.86)]);
       addOutline(upper);
       arm.add(upper);
       (this.fighter?.toolModes || []).forEach((mode, modeIndex) => {
@@ -1271,12 +1549,89 @@ class FighterRig {
       this.parts.omegaCore.scale.setScalar(mix(0.72, 1.08, heroPhase));
     }
 
+    this.applyFusionSilhouette();
     const baseScale = this.rig.cameraScale || 1;
     this.root.scale.set(
       baseScale * mix(1, pose.rootScale[0], lock),
       baseScale * mix(1, pose.rootScale[1], lock),
       baseScale * mix(1, pose.rootScale[2], lock),
     );
+  }
+
+  applyFusionSilhouette() {
+    if (this.fusionFrame) {
+      const corePhase = phase(this.progress, 0.02, 0.3);
+      const wingPhase = phase(this.progress, 0.16, 0.68);
+      const weaponPhase = phase(this.progress, 0.52, 0.92);
+      const assaultPhase = phase(this.progress, 0.38, 0.88);
+      const motion = FUSION_MOTIONS[this.profile] || FUSION_MOTIONS.hunter;
+      const {
+        wingGroup,
+        wings,
+        canardGroup,
+        canards,
+        assaultGroup,
+        identityGroup,
+        engineGroup,
+        weaponGroup,
+        tailGroup,
+        tails,
+        core,
+      } = this.fusionFrame.userData;
+      this.fusionFrame.visible = true;
+      this.fusionFrame.scale.set(
+        mix(0.92, 1.04, corePhase),
+        mix(1.02, 0.96, corePhase),
+        mix(0.9, 1.08, corePhase),
+      );
+      this.fusionFrame.position.z = mix(0, 4, corePhase);
+      core.scale.setScalar(mix(0.32, this.profile === "hypersonic" ? 1.52 : this.profile === "commander" ? 1.24 : 1.08, corePhase));
+
+      wingGroup.scale.set(mix(motion.wing[0], motion.wing[1], wingPhase), 1, mix(0.86, 1.06, wingPhase));
+      wings.forEach((wing, index) => {
+        const side = index === 0 ? -1 : 1;
+        wing.rotation.z = -side * mix(motion.sweep[0], motion.sweep[1], wingPhase);
+        wing.rotation.y = side * mix(motion.cant[0], motion.cant[1], wingPhase);
+      });
+      canardGroup.scale.set(mix(motion.canard[0], motion.canard[1], wingPhase), mix(0.66, 1, wingPhase), mix(0.44, 1, wingPhase));
+      canardGroup.position.z = mix(-1.5, this.profile === "lancer" ? 5 : 2.8, wingPhase);
+      canards.forEach((canard, index) => {
+        const side = index === 0 ? -1 : 1;
+        canard.rotation.z = side * mix(0.22, this.profile === "lancer" ? -0.28 : -0.04, wingPhase);
+      });
+      tailGroup.scale.set(mix(motion.tail[0], motion.tail[1], wingPhase), mix(0.88, 1, wingPhase), mix(0.76, 1.06, wingPhase));
+      tails.forEach((tail, index) => {
+        const side = index === 0 ? -1 : 1;
+        tail.rotation.z = side * mix(0.12, this.profile === "falcon" ? 0.42 : this.profile === "siege" ? -0.12 : 0.04, wingPhase);
+      });
+
+      engineGroup.scale.set(mix(motion.engine[0], motion.engine[1], wingPhase), mix(0.9, 1.04, wingPhase), mix(0.84, 1.08, wingPhase));
+      engineGroup.position.z = mix(-1.5, this.profile === "siege" ? 4.5 : 1.5, wingPhase);
+      weaponGroup.scale.set(
+        mix(motion.weapon[0], motion.weapon[1], weaponPhase),
+        mix(0.56, 1, weaponPhase),
+        mix(0.4, 1.12, weaponPhase),
+      );
+      weaponGroup.position.y = mix(-8, this.profile === "hunter" ? 9 : this.profile === "lancer" ? 15 : 0, weaponPhase);
+      weaponGroup.position.z = mix(-3.5, this.profile === "siege" ? 4 : -0.4, weaponPhase);
+
+      assaultGroup.scale.set(
+        mix(0.04, motion.identity, assaultPhase),
+        mix(0.18, this.profile === "lancer" ? 1.28 : 1, assaultPhase),
+        mix(0.08, this.profile === "siege" ? 1.26 : 1, assaultPhase),
+      );
+      assaultGroup.position.z = mix(-2, 1.5, assaultPhase);
+      identityGroup.scale.setScalar(mix(0.025, motion.identity, assaultPhase));
+      identityGroup.position.z = mix(-4, this.profile === "dualist" || this.profile === "hypersonic" ? 3 : 1, assaultPhase);
+      identityGroup.rotation.z = this.profile === "dualist"
+        ? mix(-0.45, 0, assaultPhase)
+        : this.profile === "skirmisher"
+          ? mix(0.72, 0, assaultPhase)
+          : 0;
+    }
+    Object.values(this.parts).forEach((part) => {
+      part.visible = false;
+    });
   }
 
   applyAction(action, time) {
@@ -1339,7 +1694,7 @@ class FighterRig {
     }
     if (this.parts.heroMantle) this.parts.heroMantle.rotation.z = Math.sin(time * 0.7) * 0.025;
     if (this.parts.nuclearPod) {
-      this.parts.nuclearPod.visible = action === "tactical";
+      this.parts.nuclearPod.visible = transform <= 0.02 && action === "tactical";
       this.parts.nuclearPod.position.y = -8 + Math.sin(time * 5) * 2.5;
       this.parts.nuclearPod.rotation.y = time * 0.45;
     }
@@ -1460,13 +1815,13 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
   try {
     const hangarRenderer = setupRenderer(hangarCanvas, true, true);
     const battleRenderer = setupRenderer(battleCanvas, true);
-    hangarRenderer.toneMappingExposure = 1.12;
+    hangarRenderer.toneMappingExposure = 0.94;
     const hangarScene = new THREE.Scene();
     const battleScene = new THREE.Scene();
     hangarScene.background = new THREE.Color(0xefe4cb);
     addLights(hangarScene);
     addLights(battleScene);
-    hangarScene.add(new THREE.AmbientLight(0xffffff, 0.72));
+    hangarScene.add(new THREE.AmbientLight(0xffffff, 0.52));
 
     const hangarGrid = new THREE.GridHelper(420, 28, 0x6f5a45, 0xb8a487);
     hangarGrid.rotation.x = Math.PI / 2;
@@ -1488,7 +1843,7 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
     hangarScene.add(hangarPlatform);
 
     const hangarCamera = new THREE.PerspectiveCamera(30, 2.4, 0.1, 1000);
-    hangarCamera.position.set(0, -188, 140);
+    hangarCamera.position.set(42, -190, 190);
     hangarCamera.lookAt(0, 5, 2);
 
     const battleCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
@@ -1501,12 +1856,6 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
 
     const battleRig = new FighterRig(fighter);
     battleScene.add(battleRig.root);
-    const wingmanRigs = Array.from({ length: 3 }, () => {
-      const rig = new FighterRig(fighter);
-      rig.root.visible = false;
-      battleScene.add(rig.root);
-      return rig;
-    });
     const bossRig = new BossRig();
     bossRig.root.visible = false;
     battleScene.add(bossRig.root);
@@ -1629,9 +1978,9 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
       hangarCamera.aspect = size.width / size.height;
       const compactCamera = Math.min(1, Math.max(0, (1.5 - hangarCamera.aspect) / 0.5));
       hangarCamera.position.set(
-        0,
-        mix(-196, -232, compactCamera),
-        mix(144, 170, compactCamera),
+        mix(42, 28, compactCamera),
+        mix(-190, -220, compactCamera),
+        mix(190, 224, compactCamera),
       );
       hangarCamera.lookAt(interaction.pointerX * 4, 5, 2 - interaction.pointerY * 3);
       hangarCamera.updateProjectionMatrix();
@@ -1640,7 +1989,7 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
       const age = (now - previewStart) / 1000;
       const enterDuration = selectedFighter?.transformDuration || 1.45;
       let previewTransform = 0;
-      if (previewMode === "assault" || previewMode === "tactical") {
+      if (previewMode === "tactical") {
         previewTransform = 1;
       } else if (previewMode === "transform") {
         if (reducedMotion) {
@@ -1675,7 +2024,6 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
         hangarAccentMaterial.color.set(colorNumber(nextFighter.accent, 0xd8ff45));
         hangarRig.setFighter(nextFighter);
         battleRig.setFighter(nextFighter);
-        wingmanRigs.forEach((rig) => rig.setFighter(nextFighter));
         selectedToolMode = 0;
         previewStart = performance.now();
       },
@@ -1685,7 +2033,7 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
         battleRig.setToolMode(selectedToolMode);
       },
       setPreviewMode(nextMode) {
-        previewMode = ["flight", "transform", "assault", "tactical"].includes(nextMode) ? nextMode : "flight";
+        previewMode = ["flight", "transform", "tactical"].includes(nextMode) ? nextMode : "flight";
         previewStart = performance.now();
       },
       resizeBattle(width, height) {
@@ -1699,12 +2047,7 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
       renderBattle(state, currentFighter) {
         this.setFighter(currentFighter);
         const seconds = state.elapsed || performance.now() / 1000;
-        const hypersonicStageProgress = currentFighter.id === "hypersonic" && state.transformTarget > 0.5
-          ? Math.min(1, 0.34 + (state.assaultFormIndex || 0) * 0.22)
-          : state.transformProgress || 0;
-        const visualTransform = currentFighter.id === "hypersonic"
-          ? Math.min(state.transformProgress || 0, hypersonicStageProgress)
-          : state.transformProgress || 0;
+        const visualTransform = state.transformProgress || 0;
         battleRig.root.visible = state.running || state.ended;
         battleRig.root.position.set(
           state.player.x - state.width / 2,
@@ -1713,20 +2056,9 @@ export function createVisualSystem({ hangarCanvas, battleCanvas, fighter, reduce
         );
         battleRig.root.rotation.x = mix(0.04, -0.16, visualTransform);
         battleRig.root.rotation.y = Math.max(-0.18, Math.min(0.18, (state.pointer.x - state.player.x) / 180));
-        battleRig.update(seconds, visualTransform, state.overdrive || 0, `tool-${state.toolModeIndex ?? selectedToolMode}`);
+        battleRig.update(seconds, visualTransform, state.overdrive || 0, "tool-0");
         const fighterScale = mix(0.78, 0.92, visualTransform);
         battleRig.root.scale.multiplyScalar(fighterScale);
-
-        wingmanRigs.forEach((rig, index) => {
-          const position = state.wingmanPositions?.[index];
-          rig.root.visible = Boolean(position);
-          if (!position) return;
-          rig.root.position.set(position.x - state.width / 2, state.height / 2 - position.y, 10);
-          rig.root.rotation.x = 0.1;
-          rig.root.rotation.y = Math.sin(seconds * 2.2 + index) * 0.08;
-          rig.update(seconds + index * 0.17, 0, 0.35, "wingman");
-          rig.root.scale.setScalar(0.38);
-        });
 
         const boss = state.enemies.find((enemy) => enemy.type === "boss");
         bossRig.root.visible = Boolean(boss);

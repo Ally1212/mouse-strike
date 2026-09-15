@@ -31,17 +31,16 @@ export const FIGHTERS = {
     shortName: "超音速",
     displayName: "超音速 X-10",
     callsign: "天穹破界",
-    role: "英雄级概念制空 / 十形态主宰",
+    role: "英雄 / 全域裁决",
     passiveName: "英雄级超维核心",
     passive: "超音速激光命中即可处决普通敌机，并以高倍率贯穿 Boss 装甲与武器舱。",
-    strength: "英雄冠翼、十种攻击形态、秒杀激光、核弹必杀与四阶段强袭变形",
+    strength: "英雄冠翼、秒杀激光与核弹必杀",
     tradeoff: "驾驶前需验证概念暗号；强袭仍需收集 3 个能量球",
     special: "天穹核裁决：投射超维核弹，清空敌弹并秒杀普通敌机；强袭激光形态下升级为全屏裁决光阵。",
     transformation: {
       name: "HYPERION X-10",
       label: "超维天神形态",
-      stages: ["极速破界", "棱镜猎杀", "泰坦重装", "光子天神"],
-      summary: "机鼻分裂为光矛核心，主翼依次转为高速刃、棱镜环、重装肩甲和光子冠，10 秒内完成四阶段强袭演化。",
+      summary: "三角翼展开能量冠，核心环与光矛沿机身中轴完成锁定。",
     },
     accent: "#25c8ff",
     secondary: "#ffd35a",
@@ -66,15 +65,6 @@ export const FIGHTERS = {
     tactical: { name: "天穹核裁决", cooldown: 10.5, projectile: "nuclear", count: 1 },
     toolModes: [
       { id: "hyper-lance", name: "01 英雄光矛", pattern: "laser", count: 1, spread: 0, damage: 14.5, rate: 0.92, warmup: 0.16, duration: 0.96, heat: 25, coolRate: 38, overheatCooldown: 0.9, width: 9.5, cycle: 1.08, laserStyle: "hero" },
-      { id: "sonic-pulse", name: "02 音爆脉冲", pattern: "pulse", count: 7, spread: 0.075, speed: 1080, damage: 1.18, rate: 0.62 },
-      { id: "quantum-seeker", name: "03 量子追踪", pattern: "seeker", count: 8, spread: 0.085, speed: 860, damage: 1.34, rate: 0.76 },
-      { id: "plasma-wave", name: "04 等离子波", pattern: "wave", count: 6, spread: 0.09, speed: 820, damage: 1.46, rate: 0.82 },
-      { id: "void-rail", name: "05 裂空轨束", pattern: "rail", count: 3, spread: 0.035, speed: 1480, damage: 2.35, rate: 0.96 },
-      { id: "gravity-shell", name: "06 重力炮阵", pattern: "heavy", count: 3, spread: 0.085, speed: 690, damage: 3.4, rate: 1.22 },
-      { id: "photon-drone", name: "07 光子无人翼", pattern: "drone", count: 7, spread: 0.1, speed: 900, damage: 1.5, rate: 0.72 },
-      { id: "cross-laser", name: "08 十字处决光", pattern: "laser", count: 3, spread: 0.052, damage: 8.8, rate: 0.88, warmup: 0.14, duration: 0.72, heat: 29, coolRate: 35, overheatCooldown: 1, width: 6.4, cycle: 1.02, laserStyle: "cross" },
-      { id: "prism-fan", name: "09 棱镜审判幕", pattern: "laser", count: 3, spread: 0.15, damage: 7.6, rate: 0.78, warmup: 0.2, duration: 1.02, heat: 35, coolRate: 32, overheatCooldown: 1.2, width: 6.8, cycle: 1.24, laserStyle: "reflect", reflect: true },
-      { id: "omega-array", name: "10 终焉英雄矩阵", pattern: "laser", count: 3, spread: 0.075, damage: 12.8, rate: 0.9, warmup: 0.28, duration: 1.28, heat: 46, coolRate: 29, overheatCooldown: 1.45, width: 11.5, cycle: 1.48, laserStyle: "omega" },
     ],
     shape: { ...sharedShape, nose: 43, body: 35, wing: 47, wingY: -2, rearWingY: 21, tail: 12, canard: 15, tailless: false },
     rig: {
@@ -137,8 +127,6 @@ export const FIGHTERS = {
     tactical: { name: "双隼截击", cooldown: 5.0, projectile: "seeker", count: 13 },
     toolModes: [
       { id: "gyrfalcon-laser", name: "双轨短激光", pattern: "laser", count: 2, spread: 0.045, damage: 5.2, rate: 0.84, warmup: 0.16, duration: 0.46, heat: 23, coolRate: 38, overheatCooldown: 0.9, width: 4.2, cycle: 0.92, laserStyle: "twin" },
-      { id: "deck-pulse", name: "甲板脉冲", pattern: "pulse", count: 5, spread: 0.12, speed: 930, damage: 0.92, rate: 0.76 },
-      { id: "edge-rail", name: "鹘鹰刃轨", pattern: "rail", count: 2, spread: 0.03, speed: 1190, damage: 1.82, rate: 1.16 },
     ],
     shape: { ...sharedShape, nose: 31, body: 26, wing: 29, wingY: 2, rearWingY: 16, tail: 13, canard: 3 },
     rig: {
@@ -200,8 +188,6 @@ export const FIGHTERS = {
     tactical: { name: "白隼合围", cooldown: 5.45, projectile: "drone", count: 15 },
     toolModes: [
       { id: "wingman-link", name: "僚机链接光束", pattern: "laser", count: 3, spread: 0.11, damage: 3.7, rate: 0.9, warmup: 0.24, duration: 0.86, heat: 30, coolRate: 33, overheatCooldown: 1.1, width: 3.6, cycle: 1.32, laserStyle: "link" },
-      { id: "falcon-wave", name: "白隼波阵", pattern: "wave", count: 5, spread: 0.12, speed: 720, damage: 0.94, rate: 0.96 },
-      { id: "navy-rail", name: "远海轨束", pattern: "rail", count: 3, spread: 0.04, speed: 1140, damage: 1.52, rate: 1.08 },
     ],
     shape: { ...sharedShape, nose: 36, body: 30, wing: 42, wingY: 0, rearWingY: 18, tail: 0, canard: 0, twinTail: false, tailless: true },
     rig: {
@@ -262,8 +248,6 @@ export const FIGHTERS = {
     tactical: { name: "幽灵猎杀", cooldown: 5.1, projectile: "seeker", count: 12 },
     toolModes: [
       { id: "raptor-designator", name: "精确锁定激光", pattern: "laser", count: 1, spread: 0, damage: 8.4, rate: 0.9, warmup: 0.26, duration: 0.56, heat: 28, coolRate: 36, overheatCooldown: 1, width: 3.8, cycle: 1.08, laserStyle: "precision" },
-      { id: "seeker-rack", name: "幽灵弹巢", pattern: "seeker", count: 3, spread: 0.11, speed: 670, damage: 1.35, rate: 1.08 },
-      { id: "rail-talon", name: "轨道利爪", pattern: "rail", count: 1, spread: 0, speed: 1220, damage: 2.45, rate: 1.34 },
     ],
     shape: { ...sharedShape, nose: 32, body: 27, wing: 28, wingY: 1, rearWingY: 15, tail: 14, canard: 4 },
     rig: {
@@ -325,8 +309,6 @@ export const FIGHTERS = {
     tactical: { name: "风暴长矛", cooldown: 5.5, projectile: "rail", count: 9 },
     toolModes: [
       { id: "tempest-rail", name: "风暴轨炮", pattern: "rail", count: 3, spread: 0.045, speed: 1160, damage: 1.16, rate: 0.96 },
-      { id: "tempest-charge", name: "蓄力风暴激光", pattern: "laser", count: 1, spread: 0, damage: 10.8, rate: 0.8, warmup: 0.48, duration: 0.72, heat: 45, coolRate: 25, overheatCooldown: 1.55, width: 7.2, cycle: 1.62, laserStyle: "charge" },
-      { id: "lance-driver", name: "长矛驱动", pattern: "heavy", count: 1, spread: 0, speed: 720, damage: 3.15, rate: 1.42 },
     ],
     shape: { ...sharedShape, nose: 34, body: 28, wing: 34, wingY: 7, rearWingY: 17, tail: 11, canard: 10, twinTail: false },
     rig: {
@@ -388,8 +370,6 @@ export const FIGHTERS = {
     tactical: { name: "双相回旋", cooldown: 5.35, projectile: "wave", count: 12 },
     toolModes: [
       { id: "dual-wave", name: "双相波炮", pattern: "wave", count: 2, spread: 0.05, speed: 730, damage: 1.28, rate: 0.96 },
-      { id: "arc-refraction", name: "弧形折射激光", pattern: "laser", count: 2, spread: 0.13, damage: 4.6, rate: 1.08, warmup: 0.3, duration: 0.9, heat: 38, coolRate: 29, overheatCooldown: 1.35, width: 4.6, cycle: 1.46, laserStyle: "reflect", reflect: true },
-      { id: "phase-needle", name: "相位针炮", pattern: "rail", count: 2, spread: 0.035, speed: 1080, damage: 1.56, rate: 1.16 },
     ],
     shape: { ...sharedShape, nose: 31, body: 27, wing: 33, wingY: 6, rearWingY: 18, tail: 12, canard: 11, twinTail: false },
     rig: {
@@ -452,8 +432,6 @@ export const FIGHTERS = {
     tactical: { name: "北境超频", cooldown: 4.6, projectile: "rail", count: 11 },
     toolModes: [
       { id: "overclock-pulse", name: "超频脉冲", pattern: "pulse", count: 3, spread: 0.075, speed: 980, damage: 0.9, rate: 0.7 },
-      { id: "graze-beam", name: "擦弹增幅光束", pattern: "laser", count: 1, spread: 0, damage: 5.6, rate: 1.02, warmup: 0.14, duration: 0.5, heat: 18, coolRate: 46, overheatCooldown: 0.78, width: 3.2, cycle: 0.78, laserStyle: "overclock" },
-      { id: "graze-rail", name: "擦弹轨钉", pattern: "rail", count: 1, spread: 0, speed: 1280, damage: 2.52, rate: 1.28 },
     ],
     shape: { ...sharedShape, nose: 30, body: 24, wing: 25, wingY: 4, rearWingY: 16, tail: 10, canard: 9, twinTail: false },
     rig: {
@@ -515,8 +493,6 @@ export const FIGHTERS = {
     tactical: { name: "新星破城", cooldown: 6.15, projectile: "heavy", count: 7 },
     toolModes: [
       { id: "heavy-burst", name: "重型爆破", pattern: "heavy", count: 2, spread: 0.08, speed: 620, damage: 2.32, rate: 1.12 },
-      { id: "armor-beam", name: "装甲熔断激光", pattern: "laser", count: 1, spread: 0, damage: 12.2, rate: 1.48, warmup: 0.38, duration: 1.18, heat: 54, coolRate: 20, overheatCooldown: 1.9, width: 9.2, cycle: 1.9, laserStyle: "armor" },
-      { id: "armor-shredder", name: "裂甲轨束", pattern: "rail", count: 3, spread: 0.055, speed: 930, damage: 1.48, rate: 1.18 },
     ],
     shape: { ...sharedShape, nose: 33, body: 32, wing: 36, wingY: 2, rearWingY: 17, tail: 18, canard: 5 },
     rig: {
@@ -578,8 +554,6 @@ export const FIGHTERS = {
     tactical: { name: "威龙天罚", cooldown: 5.2, projectile: "seeker", count: 18 },
     toolModes: [
       { id: "dragon-seeker", name: "龙牙追踪弹", pattern: "seeker", count: 3, spread: 0.082, speed: 790, damage: 1.42, rate: 0.9 },
-      { id: "dragon-spine-laser", name: "龙脊贯穿激光", pattern: "laser", count: 1, spread: 0, damage: 9.4, rate: 0.84, warmup: 0.34, duration: 0.82, heat: 40, coolRate: 27, overheatCooldown: 1.45, width: 6.4, cycle: 1.48, laserStyle: "pierce" },
-      { id: "command-drone", name: "无人翼扇射", pattern: "drone", count: 3, spread: 0.12, speed: 860, damage: 1.26, rate: 0.82 },
     ],
     shape: { ...sharedShape, nose: 36, body: 32, wing: 31, wingY: 0, rearWingY: 17, tail: 17, canard: 11 },
     rig: {
@@ -601,17 +575,70 @@ export const FIGHTERS = {
   },
 };
 
-export const WINGMAN_SPECS = {
-  hypersonic: { name: "光子圣翼队", count: 3, duration: 15, cooldown: 18, formation: "halo", projectile: "laser", rate: 0.16, speed: 1700, damage: 1.85 },
-  j20: { name: "天龙无人翼", count: 3, duration: 13.6, cooldown: 18, formation: "crown", projectile: "seeker", rate: 0.25, speed: 790, damage: 1.34 },
-  j35: { name: "双隼截击队", count: 2, duration: 9.4, cooldown: 16, formation: "pincer", projectile: "rail", rate: 0.24, speed: 1040, damage: 1.38 },
-  faxx: { name: "白隼协同队", count: 3, duration: 14.2, cooldown: 22, formation: "echelon", projectile: "drone", rate: 0.34, speed: 760, damage: 1.2 },
-  f22: { name: "猛禽猎杀队", count: 2, duration: 8.6, cooldown: 15, formation: "hunter", projectile: "seeker", rate: 0.22, speed: 820, damage: 1.42 },
-  typhoon: { name: "风暴枪骑队", count: 2, duration: 10.6, cooldown: 18, formation: "lance", projectile: "rail", rate: 0.28, speed: 1120, damage: 1.5 },
-  rafale: { name: "炽翼回旋队", count: 2, duration: 11.8, cooldown: 19, formation: "orbit", projectile: "wave", rate: 0.32, speed: 720, damage: 1.3 },
-  gripen: { name: "北境快反队", count: 3, duration: 8.2, cooldown: 14, formation: "arrow", projectile: "pulse", rate: 0.19, speed: 960, damage: 1.05 },
-  su57: { name: "破城重炮队", count: 2, duration: 13.4, cooldown: 24, formation: "bulwark", projectile: "heavy", rate: 0.5, speed: 590, damage: 2.25 },
+const ARCHETYPE_BY_FIGHTER = {
+  j20: "wing",
+  faxx: "wing",
+  rafale: "wing",
+  j35: "light",
+  f22: "light",
+  gripen: "light",
+  typhoon: "heavy",
+  su57: "heavy",
+  hypersonic: "hero",
 };
+
+const SIMPLE_IDENTITY = {
+  j20: ["翼阵 / 追踪压制", "龙翼融合形态"],
+  j35: ["轻型 / 近距突击", "鹘鹰刃翼形态"],
+  faxx: ["翼阵 / 无人协同", "白隼翼阵形态"],
+  f22: ["轻型 / 精确猎杀", "猛禽猎杀形态"],
+  typhoon: ["重型 / 轨炮贯穿", "风暴重装形态"],
+  rafale: ["翼阵 / 波炮覆盖", "双相翼阵形态"],
+  gripen: ["轻型 / 高速游击", "北境轻装形态"],
+  su57: ["重型 / 爆破攻坚", "新星重装形态"],
+  hypersonic: ["英雄 / 全域裁决", "天穹英雄形态"],
+};
+
+const FUSION_SUMMARY = {
+  light: "机身保持完整，主翼后掠为刃翼，翼根武器舱同步展开。",
+  heavy: "机身加宽并覆盖装甲，双侧重炮从翼根向前锁定。",
+  wing: "大翼面折叠为连接式翼冠，无人单元沿翼缘组成协同阵列。",
+  hero: "三角翼展开能量冠，核心环与光矛沿机身中轴完成锁定。",
+};
+
+const rating = (value) => value >= 90 ? "高" : value >= 72 ? "中" : "低";
+
+Object.values(FIGHTERS).forEach((fighter) => {
+  fighter.archetype = ARCHETYPE_BY_FIGHTER[fighter.id] || "light";
+  fighter.role = SIMPLE_IDENTITY[fighter.id][0];
+  fighter.transformation.label = SIMPLE_IDENTITY[fighter.id][1];
+  fighter.transformation.summary = FUSION_SUMMARY[fighter.archetype];
+  fighter.primary = { ...fighter.toolModes[0] };
+  fighter.toolModes = [fighter.primary];
+  fighter.ultimate = { ...fighter.tactical, cooldown: 8 };
+  fighter.tactical = fighter.ultimate;
+  fighter.ratings = {
+    mobility: rating(fighter.stats.mobility),
+    firepower: rating(fighter.stats.firepower),
+    defense: rating(fighter.stats.armor),
+  };
+  fighter.transformDuration = 0.9;
+  fighter.restoreDuration = 0.72;
+  fighter.rig.chassis = fighter.archetype;
+  fighter.rig.phases = {
+    armor: [0, 0.28],
+    chest: [0, 0.28],
+    wings: [0.22, 0.64],
+    legs: [0.22, 0.64],
+    arms: [0.48, 0.86],
+    lock: [0.7, 1],
+  };
+  fighter.special = `${fighter.ultimate.name}：清除全场敌弹并打击全部敌机，冷却 8 秒。`;
+  delete fighter.passiveName;
+  delete fighter.passive;
+  delete fighter.strength;
+  delete fighter.tradeoff;
+});
 
 export function getFighterProfile(fighterId) {
   if (fighterId === CUSTOM_FIGHTER_ID && customFighter) return customFighter;
@@ -620,9 +647,4 @@ export function getFighterProfile(fighterId) {
 
 export function getToolModes(fighterId) {
   return getFighterProfile(fighterId).toolModes;
-}
-
-export function getWingmanSpec(fighterId) {
-  if (fighterId === CUSTOM_FIGHTER_ID && customFighter?.wingman) return customFighter.wingman;
-  return WINGMAN_SPECS[fighterId] || WINGMAN_SPECS.f22;
 }

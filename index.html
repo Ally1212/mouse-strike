@@ -105,9 +105,8 @@
               </div>
               <div class="preview-controls" role="group" aria-label="预览模式">
                 <button class="is-active" type="button" data-preview="flight" aria-pressed="true"><i data-lucide="plane" aria-hidden="true"></i><span>飞行</span></button>
-                <button type="button" data-preview="transform" aria-pressed="false"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变形</span></button>
-                <button type="button" data-preview="assault" aria-pressed="false"><i data-lucide="bot" aria-hidden="true"></i><span>强袭</span></button>
-                <button type="button" data-preview="tactical" aria-pressed="false"><i data-lucide="crosshair" aria-hidden="true"></i><span>技能</span></button>
+                <button type="button" data-preview="transform" aria-pressed="false"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变身</span></button>
+                <button type="button" data-preview="tactical" aria-pressed="false"><i data-lucide="crosshair" aria-hidden="true"></i><span>必杀</span></button>
               </div>
               <a id="reference-credit" class="reference-credit" href="https://commons.wikimedia.org/wiki/File:J-20_at_Airshow_China_2016.jpg" target="_blank" rel="noopener noreferrer">Alert5 / CC BY-SA 4.0</a>
             </div>
@@ -123,18 +122,15 @@
                 <p id="selected-transform-summary">机鼻折叠为龙首胸甲，指挥角先行张开，无人翼逐架离舱，五段冠阵最后升起统合蜂群。</p>
               </div>
               <div class="fighter-traits">
-                <div><span>核心机制</span><strong id="selected-passive-name">协同火控</strong><p id="selected-passive">无人翼自动分配目标并优先攻击精英与首领部件。</p></div>
-                <div><span>专属技能</span><strong id="selected-tactical-name">威龙蜂群</strong><p id="selected-special">命令全部无人翼集中锁定高价值目标并释放追踪弹群。</p></div>
-                <div><span>优势</span><p id="selected-strength">最高战术覆盖与稳定远程压制</p></div>
-                <div><span>代价</span><p id="selected-tradeoff">伤害依赖无人翼协同</p></div>
+                <div><span>自动主武器</span><strong id="selected-passive-name">龙牙追踪弹</strong><p id="selected-passive">自动持续射击，专注移动与躲避。</p></div>
+                <div><span>融合变身</span><strong>3 核心 / 10 秒</strong><p id="selected-strength">翼面折叠并展开武器，保持完整战机轮廓。</p></div>
+                <div><span>左键全屏必杀</span><strong id="selected-tactical-name">威龙天罚</strong><p id="selected-special">清除全场敌弹并打击全部敌机，冷却 8 秒。</p></div>
               </div>
 
               <div class="fighter-stats" aria-label="当前战机属性">
-                <div><span>机动</span><i><b id="agility-stat"></b></i><em id="agility-value">74</em></div>
-                <div><span>火力</span><i><b id="firepower-stat"></b></i><em id="firepower-value">86</em></div>
-                <div><span>装甲</span><i><b id="armor-stat"></b></i><em id="armor-value">76</em></div>
-                <div><span>变形</span><i><b id="transform-stat"></b></i><em id="transform-value">90</em></div>
-                <div><span>战术</span><i><b id="tactical-stat"></b></i><em id="tactical-value-stat">100</em></div>
+                <div><span>机动</span><i><b id="agility-stat"></b></i><em id="agility-value">中</em></div>
+                <div><span>火力</span><i><b id="firepower-stat"></b></i><em id="firepower-value">高</em></div>
+                <div><span>防护</span><i><b id="armor-stat"></b></i><em id="armor-value">中</em></div>
               </div>
             </aside>
           </div>
@@ -176,19 +172,19 @@
             </li>
             <li>
               <kbd class="rule-key">左键</kbd>
-              <div><strong>切换攻击形态</strong><p>普通战机 3 种；激光会预热、持续输出并积累热量。</p></div>
+              <div><strong>释放全屏专属必杀</strong><p>点击战场任意位置，清除全场敌弹并打击全部敌机，冷却 8 秒。</p></div>
             </li>
             <li>
               <kbd class="rule-key">右键</kbd>
               <div><strong>消耗 3 球变身</strong><p>集满后出现提示，右键手动启动，强袭持续 10 秒。</p></div>
             </li>
             <li>
-              <kbd class="rule-key">Space</kbd>
-              <div><strong>召唤僚机</strong><p>僚机限时协同射击，冷却结束后可再次召唤。</p></div>
+              <kbd class="rule-key">红球</kbd>
+              <div><strong>收集变身核心</strong><p>拾取 3 个红色核心后，即可启动融合变身。</p></div>
             </li>
             <li>
-              <kbd class="rule-key">E</kbd>
-              <div><strong>释放专属必杀</strong><p>清除近身敌弹并打出当前战机的高伤技能。</p></div>
+              <kbd class="rule-key">Q</kbd>
+              <div><strong>退出战斗</strong><p>随时返回机库，更换战机或战区后重新出击。</p></div>
             </li>
           </ol>
           <div class="pickup-guide" aria-label="掉落球作用">
@@ -220,7 +216,7 @@
               <div><p class="eyebrow">本地作战设计器</p><h2 id="custom-fighter-title">生成你的战机</h2></div>
               <button id="custom-fighter-close" class="icon-button" type="button" aria-label="关闭自定义战机窗口"><i data-lucide="x" aria-hidden="true"></i></button>
             </div>
-            <p>输入战机名称和作战偏好。浏览器会在本地生成三种攻击形态、必杀、被动、僚机编队与平衡属性，可立即投入战斗。</p>
+            <p>输入战机名称和作战偏好。浏览器会在本地生成自动主武器、融合变身、必杀和三项能力评价，可立即投入战斗。</p>
             <label><span>战机名称</span><input id="custom-fighter-name" maxlength="24" autocomplete="off" placeholder="例如：苍穹游隼" required /></label>
             <label><span>作战偏好</span><textarea id="custom-fighter-brief" maxlength="140" rows="3" placeholder="例如：高速蜂群导弹战机，擅长追踪精英目标" required></textarea></label>
             <p id="custom-fighter-result" class="custom-fighter-result" aria-live="polite">关键词会影响技能类型：激光、重炮、蜂群、速度。</p>
@@ -262,41 +258,28 @@
         </div>
 
         <div class="ability-hud" aria-live="polite">
-          <div class="passive-readout">
-            <span>被动</span>
-            <strong id="passive-status">幽灵标记 // 0 个目标</strong>
-          </div>
           <div class="ability ability--skill">
             <kbd>左键</kbd>
             <div>
-              <span>攻击形态</span>
-              <strong id="skill-value">矢量机炮</strong>
+              <span>全屏必杀</span>
+              <strong id="skill-value">威龙天罚</strong>
             </div>
-            <em id="skill-cooldown">1 / 3</em>
+            <em id="skill-cooldown">就绪</em>
           </div>
           <div class="ability ability--transform">
             <kbd>右键</kbd>
             <div>
-              <span>核心变身</span>
+              <span>融合变身</span>
               <strong id="form-value">飞行形态</strong>
               <i><b id="form-energy"></b></i>
             </div>
             <em id="form-energy-label">0 / 3 球</em>
           </div>
-          <div class="ability ability--wingman">
-            <kbd>Space</kbd>
-            <div>
-              <span>僚机支援</span>
-              <strong id="wingman-value">猛禽猎杀队</strong>
-            </div>
-            <em id="wingman-cooldown">就绪</em>
-          </div>
         </div>
 
         <div class="mobile-actions" aria-label="战斗技能">
-          <button id="skill-button" type="button" aria-label="切换攻击形态"><i data-lucide="crosshair" aria-hidden="true"></i><span>形态</span></button>
-          <button id="transform-button" type="button" aria-label="切换飞行与强袭形态"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变形</span></button>
-          <button id="wingman-button" type="button" aria-label="召唤僚机"><i data-lucide="bot" aria-hidden="true"></i><span>僚机</span></button>
+          <button id="skill-button" type="button" aria-label="释放必杀"><i data-lucide="crosshair" aria-hidden="true"></i><span>必杀</span></button>
+          <button id="transform-button" type="button" aria-label="切换飞行与融合形态"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>变身</span></button>
         </div>
 
         <div id="boss-hud" class="boss-hud" hidden>
@@ -306,19 +289,6 @@
 
         <div class="exit-hint"><kbd>Q</kbd><span>退出</span></div>
         <div id="wave-message" class="wave-message" aria-hidden="true">第 01 波</div>
-        <section id="mission-briefing" class="mission-event" aria-labelledby="mission-event-title" hidden>
-          <div class="mission-event__tag"><span id="mission-event-tag">副本来袭</span><em>战斗已暂停</em></div>
-          <h2 id="mission-event-title">云端过山车</h2>
-          <p id="mission-event-rule">跟随发光轨道完成高速俯冲。</p>
-          <dl>
-            <div><dt>成功条件</dt><dd id="mission-event-objective">完成目标</dd></div>
-            <div><dt>完成奖励</dt><dd id="mission-event-reward">获得战斗强化</dd></div>
-          </dl>
-          <div class="mission-event__actions">
-            <button id="mission-enter" type="button">进入副本</button>
-            <button id="mission-skip" type="button">本局跳过</button>
-          </div>
-        </section>
         <section id="airdrop-choice" class="mission-event airdrop-choice" aria-labelledby="airdrop-choice-title" hidden>
           <div class="mission-event__tag"><span id="airdrop-choice-tag">战术空投</span><em>战斗已暂停</em></div>
           <h2 id="airdrop-choice-title">选择补给</h2>
@@ -340,11 +310,6 @@
             <span id="airdrop-escort-detail">留在补给范围内；敌机将集中攻击补给箱</span>
           </button>
         </section>
-        <div id="mission-progress" class="mission-progress" aria-live="polite" hidden>
-          <div><span id="mission-progress-tag">副本进行中</span><strong id="mission-progress-title">云端过山车</strong></div>
-          <p id="mission-progress-rule">跟随发光航线</p>
-          <div class="mission-progress__bottom"><i><b id="mission-progress-bar"></b></i><em id="mission-progress-value">10.0 秒</em></div>
-        </div>
         <div id="airdrop-progress" class="airdrop-progress" aria-live="polite" hidden>
           <div class="airdrop-progress__header"><span>战术空投护送</span><strong id="airdrop-progress-status">留在护送范围内</strong></div>
           <div class="airdrop-progress__row"><i><b id="airdrop-progress-bar"></b></i><em id="airdrop-progress-value">0.0 / 6.0 秒</em></div>
