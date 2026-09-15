@@ -3,4 +3,5 @@ dist/
 test-results/
 playwright-report/
 .playwright-cli/
+output/
 .env.local
